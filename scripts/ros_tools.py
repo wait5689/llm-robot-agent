@@ -18,7 +18,9 @@ class RobotController:
     
     def __init__(self):
         """初始化 ROS 节点和发布者/订阅者"""
-        rospy.init_node('llm_robot_agent', anonymous=True)
+        # 检查是否已经初始化，避免重复初始化
+        if not rospy.core.is_initialized():
+            rospy.init_node('llm_robot_agent', anonymous=True)
         
         # 速度发布者
         self.vel_pub = rospy.Publisher('/cmd_vel', Twist, queue_size=10)
