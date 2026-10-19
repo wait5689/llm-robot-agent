@@ -2,9 +2,10 @@
 openai>=1.0.0
 anthropic>=0.18.0
 
-# ROS 2 Python bindings (installed via apt, listed for documentation)
-# ros-humble-ros2launch
-# ros-humble-rclpy
+# ROS 1 Python bindings (installed via apt, listed for documentation)
+# ros-noetic-rospy
+# ros-noetic-geometry-msgs
+# ros-noetic-nav-msgs
 
 # Navigation and robotics
 numpy>=1.24.0

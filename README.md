@@ -10,9 +10,9 @@ LLM-based Autonomous Mobile Robot Agent System
 
 - **Python**: Agent 程序开发
 - **大语言模型 API**: 任务理解与规划
-- **ROS 2**: 机器人功能管理
-- **Gazebo**: 机器人仿真环境
-- **Nav2**: 自主导航系统
+- **ROS 1 Noetic**: 机器人功能管理
+- **Gazebo 11**: 机器人仿真环境
+- **Navigation Stack**: 自主导航系统
 
 ## 项目阶段
 
@@ -54,7 +54,7 @@ LLM Agent (任务理解与规划)
     ↓
 工具调用接口
     ↓
-ROS 2 / Nav2 (导航执行)
+ROS 1 / Navigation Stack (导航执行)
     ↓
 Gazebo (仿真环境)
     ↓
@@ -63,14 +63,14 @@ Gazebo (仿真环境)
 
 ## 核心设计原则
 
-大模型负责思考和规划，ROS 2/Nav2 负责执行具体机器人操作。大模型不直接生成电机控制指令，而是通过工具接口调用导航、查询状态等功能。
+大模型负责思考和规划，ROS 1/Navigation Stack 负责执行具体机器人操作。大模型不直接生成电机控制指令，而是通过工具接口调用导航、查询状态等功能。
 
 ## 开发环境
 
 - Ubuntu 22.04 (WSL2)
-- ROS 2 Humble
-- Gazebo Classic / Gazebo Sim
-- Python 3.10+
+- ROS 1 Noetic
+- Gazebo 11.15.1
+- Python 3.8+
 
 ## 快速开始
 
