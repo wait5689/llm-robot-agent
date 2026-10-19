@@ -1,0 +1,47 @@
+<?xml version="1.0"?>
+<robot name="obstacles">
+  <!--红色方块障碍物1-->
+  <link name="box1">
+    <visual>
+      <geometry><box size="1 1 1"/></geometry>
+      <material name="red"><color rgba="1 0 0 1"/></material>
+    </visual>
+    <collision>
+      <geometry><box size="1 1 1"/></geometry>
+    </collision>
+    <inertial>
+      <mass value="1"/>
+      <inertia ixx="0.1" ixy="0" ixz="0" iyy="0.1" iyz="0" izz="0.1"/>
+    </inertial>
+  </link>
+
+  <!--绿色方块障碍物2-->
+  <link name="box2">
+    <visual>
+      <geometry><box size="0.8 0.8 0.8"/></geometry>
+      <material name="green"><color rgba="0 1 0 1"/></material>
+    </visual>
+    <collision>
+      <geometry><box size="0.8 0.8 0.8"/></geometry>
+    </collision>
+    <inertial>
+      <mass value="1"/>
+      <inertia ixx="0.05" ixy="0" ixz="0" iyy="0.05" iyz="0" izz="0.05"/>
+    </inertial>
+  </link>
+
+  <!--蓝色方块障碍物3-->
+  <link name="box3">
+    <visual>
+      <geometry><box size="0.6 0.6 0.6"/></geometry>
+      <material name="blue"><color rgba="0 0 1 1"/></material>
+    </visual>
+    <collision>
+      <geometry><box size="0.6 0.6 0.6"/></geometry>
+    </collision>
+    <inertial>
+      <mass value="1"/>
+      <inertia ixx="0.03" ixy="0" ixz="0" iyy="0.03" iyz="0" izz="0.03"/>
+    </inertial>
+  </link>
+</robot>

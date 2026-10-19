@@ -1,0 +1,44 @@
+<?xml version="1.0"?>
+<!--
+  基础小车场景（从 four_car_sim/car.launch 合并而来）
+  用途：阶段一的第二个验证场景，与 complex_indoor.world 并存，便于对照调试
+
+  注意：car.urdf 结构与 advanced_robot.urdf 不同
+    - 只有相机，没有激光雷达（激光建图与导航请用 advanced_robot）
+    - 关节名为 4 个独立 joint，而非 advanced 的左右各一个
+  因此本场景仅用于「能看到车、能开动」，不能用于阶段二导航取证。
+
+  用法：
+    roslaunch llm_robot_agent car.launch
+    rosrun teleop_twist_keyboard teleop_twist_keyboard.py
+-->
+<launch>
+  <arg name="world" default="$(find llm_robot_agent)/worlds/car_world.world"/>
+  <arg name="model" default="$(find llm_robot_agent)/urdf/car.urdf"/>
+  <arg name="x" default="0.0"/>
+  <arg name="y" default="0.0"/>
+  <arg name="z" default="0.1"/>
+  <arg name="gui" default="true"/>
+
+  <param name="use_sim_time" value="true"/>
+
+  <include file="$(find gazebo_ros)/launch/empty_world.launch">
+    <arg name="world_name" value="$(arg world)"/>
+    <arg name="paused" value="false"/>
+    <arg name="use_sim_time" value="true"/>
+    <arg name="gui" value="$(arg gui)"/>
+    <arg name="headless" value="false"/>
+    <arg name="debug" value="false"/>
+  </include>
+
+  <param name="robot_description" textfile="$(arg model)"/>
+
+  <node name="spawn_car" pkg="gazebo_ros" type="spawn_model"
+        args="-urdf -param robot_description -model car -x $(arg x) -y $(arg y) -z $(arg z)"
+        output="screen"/>
+
+  <node name="joint_state_publisher" pkg="joint_state_publisher" type="joint_state_publisher">
+    <param name="use_gui" value="false"/>
+  </node>
+  <node name="robot_state_publisher" pkg="robot_state_publisher" type="robot_state_publisher"/>
+</launch>

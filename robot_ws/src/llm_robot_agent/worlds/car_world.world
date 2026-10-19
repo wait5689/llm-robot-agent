@@ -1,0 +1,242 @@
+<?xml version="1.0"?>
+
+<sdf version="1.6">
+
+  <world name="four_car_world">
+
+    <!-- ================= 地面 ================= -->
+
+    <model name="ground_plane">
+
+      <static>true</static>
+
+      <link name="link">
+
+        <collision name="collision">
+
+          <geometry>
+
+            <plane>
+
+              <normal>0 0 1</normal>
+
+              <size>100 100</size>
+
+            </plane>
+
+          </geometry>
+
+        </collision>
+
+
+        <visual name="visual">
+
+          <geometry>
+
+            <plane>
+
+              <normal>0 0 1</normal>
+
+              <size>100 100</size>
+
+            </plane>
+
+          </geometry>
+
+          <material>
+
+            <ambient>0.4 0.4 0.4 1</ambient>
+
+            <diffuse>0.4 0.4 0.4 1</diffuse>
+
+          </material>
+
+        </visual>
+
+      </link>
+
+    </model>
+
+
+    <!-- ================= 光源 ================= -->
+
+    <light name="sun" type="directional">
+
+      <cast_shadows>true</cast_shadows>
+
+      <pose>0 0 10 0 0 0</pose>
+
+      <diffuse>0.8 0.8 0.8 1</diffuse>
+
+      <specular>0.1 0.1 0.1 1</specular>
+
+      <direction>0.1 0.1 -1</direction>
+
+    </light>
+
+
+    <!-- ================================================= -->
+    <!-- 障碍物1：小车正前方 -->
+    <!-- ================================================= -->
+
+    <model name="obstacle_1">
+
+      <static>true</static>
+
+      <pose>1.8 0 0.3 0 0 0</pose>
+
+      <link name="link">
+
+        <collision name="collision">
+
+          <geometry>
+
+            <box>
+
+              <size>0.6 0.6 0.6</size>
+
+            </box>
+
+          </geometry>
+
+        </collision>
+
+
+        <visual name="visual">
+
+          <geometry>
+
+            <box>
+
+              <size>0.6 0.6 0.6</size>
+
+            </box>
+
+          </geometry>
+
+          <material>
+
+            <ambient>1 0 0 1</ambient>
+
+            <diffuse>1 0 0 1</diffuse>
+
+          </material>
+
+        </visual>
+
+      </link>
+
+    </model>
+
+
+    <!-- ================================================= -->
+    <!-- 障碍物2：右前方 -->
+    <!-- ================================================= -->
+
+    <model name="obstacle_2">
+
+      <static>true</static>
+
+      <pose>2.8 -0.8 0.25 0 0 0</pose>
+
+      <link name="link">
+
+        <collision name="collision">
+
+          <geometry>
+
+            <box>
+
+              <size>0.5 0.5 0.5</size>
+
+            </box>
+
+          </geometry>
+
+        </collision>
+
+
+        <visual name="visual">
+
+          <geometry>
+
+            <box>
+
+              <size>0.5 0.5 0.5</size>
+
+            </box>
+
+          </geometry>
+
+          <material>
+
+            <ambient>0 0 1 1</ambient>
+
+            <diffuse>0 0 1 1</diffuse>
+
+          </material>
+
+        </visual>
+
+      </link>
+
+    </model>
+
+
+    <!-- ================================================= -->
+    <!-- 障碍物3：左前方 -->
+    <!-- ================================================= -->
+
+    <model name="obstacle_3">
+
+      <static>true</static>
+
+      <pose>2.8 0.8 0.25 0 0 0</pose>
+
+      <link name="link">
+
+        <collision name="collision">
+
+          <geometry>
+
+            <box>
+
+              <size>0.5 0.5 0.5</size>
+
+            </box>
+
+          </geometry>
+
+        </collision>
+
+
+        <visual name="visual">
+
+          <geometry>
+
+            <box>
+
+              <size>0.5 0.5 0.5</size>
+
+            </box>
+
+          </geometry>
+
+          <material>
+
+            <ambient>0 1 0 1</ambient>
+
+            <diffuse>0 1 0 1</diffuse>
+
+          </material>
+
+        </visual>
+
+      </link>
+
+    </model>
+
+
+  </world>
+
+</sdf>

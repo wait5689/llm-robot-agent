@@ -78,7 +78,9 @@ llm-robot-agent/
 ├── robot_ws/src/llm_robot_agent/       # ROS 1 catkin 包
 │   ├── package.xml  CMakeLists.txt
 │   ├── launch/
-│   │   ├── gazebo.launch               # 阶段一：只看机器人和世界
+│   │   ├── gazebo.launch               # 阶段一：高级机器人 + 多房间世界
+│   │   ├── car.launch                  # 阶段一：基础小车 + 障碍物场景
+│   │   ├── car_gazebo.launch           # 同上，命令式生成版本
 │   │   ├── navigation.launch           # 阶段二：地图+AMCL+move_base
 │   │   └── full_system.launch          # 阶段三：全系统 + Agent 节点
 │   ├── config/
@@ -89,8 +91,13 @@ llm-robot-agent/
 │   │   ├── local_costmap_params.yaml
 │   │   ├── base_local_planner_params.yaml  # DWA 局部规划
 │   │   └── move_base_params.yaml       # 含恢复行为
-│   ├── urdf/advanced_robot.urdf        # 四轮差速 + 激光 + 相机
-│   ├── worlds/complex_indoor.world     # 21 个模型的多房间场景
+│   ├── urdf/
+│   │   ├── advanced_robot.urdf         # 四轮差速 + 激光 + 相机（导航用这个）
+│   │   ├── car.urdf                    # 基础小车，仅相机无雷达
+│   │   └── obstacles.urdf
+│   ├── worlds/
+│   │   ├── complex_indoor.world        # 21 个模型的多房间场景
+│   │   └── car_world.world             # 3 个障碍物的基础场景
 │   ├── maps/                           # 建图输出
 │   └── scripts/
 │       ├── agent_run.py                # CLI 入口
@@ -106,7 +113,9 @@ llm-robot-agent/
 │           └── backends/{base,mock_backend,ros_backend}.py
 ├── tests/test_agent.py                 # 31 项测试
 ├── demos/demo.py                       # 四个演示场景
-└── docs/ARCHITECTURE.md                # 架构说明
+└── docs/
+    ├── ARCHITECTURE.md                 # 架构说明
+    └── MERGE_NOTES.md                  # four_car_sim 合并记录
 ```
 
 ---
@@ -171,8 +180,9 @@ cd robot_ws
 catkin_make
 source devel/setup.bash
 
-# 阶段一：能看到机器人
-roslaunch llm_robot_agent gazebo.launch
+# 阶段一：能看到机器人（两个场景任选）
+roslaunch llm_robot_agent gazebo.launch        # 高级机器人 + 多房间
+roslaunch llm_robot_agent car.launch           # 基础小车 + 障碍物
 rosrun teleop_twist_keyboard teleop_twist_keyboard.py
 
 # 建图（阶段二前置，只需一次）
@@ -190,6 +200,21 @@ roslaunch llm_robot_agent full_system.launch \
 > **重要**：ROS 1 Noetic 官方仅支持 Ubuntu 20.04。README 早期版本写的
 > 「Ubuntu 22.04 + ROS 1」是矛盾的组合，请按本说明使用 20.04。
 > 若要上 22.04，应整体迁移到 ROS 2 Humble + Nav2。
+
+### 3.5 从旧的 four_car_sim 迁移
+
+本包已合并原 `four_car_sim` 的全部有效资产，**不再依赖外部包**。
+若你的 WSL 里还有旧包，请按 `docs/MERGE_NOTES.md` 的步骤替换：
+
+```bash
+cd ~/catkin_ws
+mv src/four_car_sim src/four_car_sim.old    # 先备份，不要直接删
+cp -r <本仓库>/robot_ws/src/llm_robot_agent src/
+catkin_make && source devel/setup.bash
+```
+
+注意：`car.urdf` **没有激光雷达**，只能用于「车能开动」的验证；
+建图与导航必须用 `advanced_robot.urdf`。
 
 ---
 

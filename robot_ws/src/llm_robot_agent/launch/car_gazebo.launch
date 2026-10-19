@@ -1,0 +1,16 @@
+<?xml version="1.0"?>
+<launch>
+  <include file="$(find gazebo_ros)/launch/empty_world.launch">
+    <arg name="world_name" value="$(find llm_robot_agent)/worlds/car_world.world"/>
+    <arg name="paused" value="false"/>
+    <arg name="use_sim_time" value="true"/>
+  </include>
+
+  <param name="robot_description" textfile="$(find llm_robot_agent)/urdf/car.urdf"/>
+
+  <node pkg="joint_state_publisher" type="joint_state_publisher" name="joint_state_publisher"/>
+  <node pkg="robot_state_publisher" type="robot_state_publisher" name="robot_state_publisher"/>
+
+  <node name="spawn_car" pkg="gazebo_ros" type="spawn_model" output="screen"
+        args="-topic robot_description -model my_car -x 0 -y 0 -z 0.1"/>
+</launch>
