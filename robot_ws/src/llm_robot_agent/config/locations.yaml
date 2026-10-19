@@ -1,0 +1,65 @@
+# =========================================================
+# 语义地图：地点名称 -> 地图坐标系下的目标位姿
+# ---------------------------------------------------------
+# 这是 Agent 与导航栈之间的关键接口。
+# LLM 只会输出语义地点名（例如 "room_a"），坐标映射在这里完成，
+# 避免让大模型去编造精确数字坐标。
+#
+# 坐标单位为米，yaw 为弧度（0 = 朝向 +X 轴）。
+# 初始值对应 worlds/complex_indoor.world 中的 target_a/b/c 标记，
+# 建图后请用 RViz 的 "2D Pose Estimate" 校准后更新本文件。
+# =========================================================
+
+frame_id: map
+
+# 机器人每次任务开始时的默认点位
+home:
+  position: [0.0, -3.0]
+  yaw: 0.0
+  description: "起点 / 充电桩"
+
+locations:
+  room_a:
+    position: [-3.5, 2.5]
+    yaw: 1.57
+    description: "房间 A，西侧，有书桌与椅子"
+
+  room_b:
+    position: [3.5, 2.5]
+    yaw: -1.57
+    description: "房间 B，东侧，有书架与沙发"
+
+  room_c:
+    position: [0.0, 5.0]
+    yaw: 3.14
+    description: "房间 C，北侧，有柜子"
+
+  room_d:
+    position: [-3.5, -2.5]
+    yaw: 0.0
+    description: "房间 D，西南角，有床"
+
+  corridor:
+    position: [0.0, 0.0]
+    yaw: 0.0
+    description: "中央走廊，连接各房间"
+
+# 别名表：允许用户用中文/口语化说法指代地点
+aliases:
+  a: room_a
+  房间a: room_a
+  A房间: room_a
+  房间A: room_a
+  b: room_b
+  房间b: room_b
+  房间B: room_b
+  c: room_c
+  房间c: room_c
+  房间C: room_c
+  d: room_d
+  房间d: room_d
+  房间D: room_d
+  起点: home
+  出发点: home
+  大本营: home
+  走廊: corridor

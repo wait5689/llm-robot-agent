@@ -1,0 +1,18 @@
+# move_base 全局配置
+shutdown_costmaps: false
+controller_frequency: 15.0
+planner_patience: 5.0
+controller_patience: 15.0
+conservative_reset_dist: 3.0
+planner_frequency: 1.0
+oscillation_timeout: 10.0
+oscillation_distance: 0.2
+clearing_rotation_allowed: true
+recovery_behavior_enabled: true
+
+# 恢复行为：先清代价地图，再原地旋转（这是 Agent 端 BLOCKED 重试能成功的物理基础）
+recovery_behaviors:
+  - name: conservative_reset
+    type: clear_costmap_recovery/ClearCostmapRecovery
+  - name: rotate_recovery
+    type: rotate_recovery/RotateRecovery

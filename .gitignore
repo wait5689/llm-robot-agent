@@ -53,3 +53,21 @@ Thumbs.db
 # Environment variables
 .env
 config/.env
+
+# ==========================================================
+# ROS 工作空间产物
+robot_ws/build/
+robot_ws/devel/
+robot_ws/install/
+robot_ws/.catkin_workspace
+robot_ws/logs/
+
+# 运行时产物
+logs/
+*.bag
+.pytest_cache/
+__pycache__/
+
+# 大体积仿真资源（如需提交请改用 Git LFS）
+*.dae
+*.stl

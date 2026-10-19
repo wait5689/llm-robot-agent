@@ -1,19 +1,27 @@
-# LLM API
-openai>=1.0.0
-anthropic>=0.18.0
+# ==========================================================
+# Python 依赖（Agent 核心 + Web 界面）
+# 仅需 Python 3.8+，无需 ROS 即可运行 mock 后端与全部测试
+# ==========================================================
 
-# ROS 1 Python bindings (installed via apt, listed for documentation)
-# ros-noetic-rospy
-# ros-noetic-geometry-msgs
-# ros-noetic-nav-msgs
-
-# Navigation and robotics
-numpy>=1.24.0
+# YAML 配置
 PyYAML>=6.0
 
-# Web interface
+# HTTP（LLM API 调用）
+requests>=2.31.0
+
+# Web 控制界面
 flask>=2.3.0
 flask-cors>=4.0.0
 
-# Utilities
-requests>=2.31.0
+# 测试
+pytest>=7.0
+
+# ----------------------------------------------------------
+# ROS 1 Python 绑定（通过 apt 安装，此处仅作说明）
+#   ros-noetic-rospy  ros-noetic-rospy-message-converter
+#   ros-noetic-geometry-msgs  ros-noetic-nav-msgs
+#   ros-noetic-move-base-msgs  ros-noetic-actionlib
+# 安装：
+#   sudo apt install ros-noetic-desktop-full ros-noetic-move-base \
+#                    ros-noetic-amcl ros-noetic-map-server
+# ----------------------------------------------------------

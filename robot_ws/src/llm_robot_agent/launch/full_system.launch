@@ -1,0 +1,30 @@
+<?xml version="1.0"?>
+<!--
+  阶段三验收：完整系统（仿真 + 导航 + LLM Agent）
+  验证目标：一句自然语言下达多地点任务，机器人自主完成
+
+  用法：
+    roslaunch llm_robot_agent full_system.launch task:="去房间A，然后去房间B，最后回起点"
+-->
+<launch>
+  <arg name="map_file" default="$(find llm_robot_agent)/maps/indoor.yaml"/>
+  <arg name="rviz" default="true"/>
+  <arg name="task" default=""/>
+  <arg name="with_web" default="false"/>
+
+  <include file="$(find llm_robot_agent)/launch/navigation.launch">
+    <arg name="map_file" value="$(arg map_file)"/>
+    <arg name="rviz" value="$(arg rviz)"/>
+  </include>
+
+  <!-- Agent 节点 -->
+  <node name="llm_robot_agent" pkg="llm_robot_agent" type="agent_run.py"
+        args="--backend ros --task &quot;$(arg task)&quot;"
+        output="screen" required="false">
+    <env name="PYTHONUNBUFFERED" value="1"/>
+  </node>
+
+  <!-- 可选：Web 控制界面 -->
+  <node if="$(arg with_web)" name="agent_web" pkg="llm_robot_agent"
+        type="web_server.py" output="screen"/>
+</launch>

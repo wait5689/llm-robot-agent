@@ -1,0 +1,42 @@
+# =========================================================
+# Agent 运行时配置
+# =========================================================
+
+llm:
+  # 优先从环境变量 DEEPSEEK_API_KEY 读取；也可直接写在这里（不推荐提交到仓库）
+  api_key_env: DEEPSEEK_API_KEY
+  base_url: https://api.deepseek.com/v1
+  model: deepseek-chat
+  temperature: 0.1
+  timeout_sec: 60
+  max_retries: 2
+
+agent:
+  # 单次任务允许的最大「思考-行动」轮数，防止死循环烧钱
+  max_turns: 20
+  # 同一地点最多尝试导航次数
+  max_nav_attempts: 3
+  # 任务总超时（秒）
+  task_timeout_sec: 600
+  # 每一步之间保持的最小间隔，避免打断导航
+  loop_delay_sec: 0.5
+
+navigation:
+  # 单次导航目标超时（秒）
+  nav_timeout_sec: 120
+  # 判定到达的位置误差容限（米）
+  goal_tolerance: 0.30
+  # 导航失败后允许的最大恢复次数
+  max_recovery_attempts: 2
+  # 连续失败达到该次数时，判定为「环境级故障」，交由 LLM 决策是否放弃
+  consecutive_failure_limit: 3
+
+memory:
+  # 任务历史保留条数
+  history_size: 50
+  # 会话摘要文件（相对 package 目录）
+  summary_file: logs/session_memory.json
+
+logging:
+  level: INFO
+  file: logs/agent.log

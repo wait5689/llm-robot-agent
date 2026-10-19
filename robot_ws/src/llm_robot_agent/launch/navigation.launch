@@ -1,0 +1,49 @@
+<?xml version="1.0"?>
+<!--
+  阶段二验收：仿真 + 地图服务 + AMCL 定位 + move_base 导航
+  验证目标：在 RViz 里用 "2D Nav Goal" 点一个目标，机器人自主规划并到达
+
+  前置：先建好地图
+    roslaunch llm_robot_agent gazebo.launch
+    rosrun gmapping slam_gmapping scan:=scan
+    rosrun map_server map_saver -f $(rospack find llm_robot_agent)/maps/indoor
+-->
+<launch>
+  <arg name="map_file" default="$(find llm_robot_agent)/maps/indoor.yaml"/>
+  <arg name="x" default="0.0"/>
+  <arg name="y" default="-3.0"/>
+  <arg name="z" default="0.15"/>
+  <arg name="rviz" default="true"/>
+  <arg name="init_pose_x" default="0.0"/>
+  <arg name="init_pose_y" default="-3.0"/>
+  <arg name="init_pose_yaw" default="0.0"/>
+
+  <include file="$(find llm_robot_agent)/launch/gazebo.launch">
+    <arg name="x" value="$(arg x)"/>
+    <arg name="y" value="$(arg y)"/>
+    <arg name="z" value="$(arg z)"/>
+  </include>
+
+  <!-- 地图 -->
+  <node name="map_server" pkg="map_server" type="map_server" args="$(arg map_file)" output="screen"/>
+
+  <!-- AMCL 定位 -->
+  <include file="$(find amcl)/examples/amcl_diff.launch"/>
+
+  <!-- 初始位姿：仿真中我们已知机器人生成位置，直接喂给 AMCL 避免手动点 -->
+  <node name="initial_pose_publisher" pkg="llm_robot_agent" type="initial_pose.py"
+        args="$(arg init_pose_x) $(arg init_pose_y) $(arg init_pose_yaw)" output="screen"/>
+
+  <!-- move_base：使用包内参数 -->
+  <node name="move_base" pkg="move_base" type="move_base" respawn="false" output="screen">
+    <rosparam file="$(find llm_robot_agent)/config/costmap_common_params.yaml" command="load" ns="global_costmap"/>
+    <rosparam file="$(find llm_robot_agent)/config/costmap_common_params.yaml" command="load" ns="local_costmap"/>
+    <rosparam file="$(find llm_robot_agent)/config/global_costmap_params.yaml" command="load"/>
+    <rosparam file="$(find llm_robot_agent)/config/local_costmap_params.yaml" command="load"/>
+    <rosparam file="$(find llm_robot_agent)/config/base_local_planner_params.yaml" command="load"/>
+    <rosparam file="$(find llm_robot_agent)/config/move_base_params.yaml" command="load"/>
+  </node>
+
+  <node if="$(arg rviz)" name="rviz" pkg="rviz" type="rviz"
+        args="-d $(find llm_robot_agent)/rviz/nav.rviz" output="screen"/>
+</launch>
