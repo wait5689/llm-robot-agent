@@ -106,6 +106,8 @@ class LLMRobotAgent:
         self.record.finished_at = time.time()
         return {
             "success": result.get("success", False),
+            # summary 与 message 同源，保留双键以兼容两种调用约定
+            "summary": self.record.final_message,
             "message": self.record.final_message,
             "turns": self.record.turns,
             "tool_calls": self.record.tool_calls,

@@ -67,9 +67,22 @@ def load_agent_config(path: str | None) -> dict:
 
 
 def _load_dotenv() -> None:
-    """极简 .env 加载：只支持 KEY=VALUE 与 # 注释。"""
-    for rel in ("config/.env", ".env"):
-        path = os.path.join(_pkg_root(), rel)
+    """极简 .env 加载：只支持 KEY=VALUE 与 # 注释。
+
+    查找顺序（先命中者生效，后命中只补齐缺失项，不覆盖已有值）：
+      1. 包内 config/.env        —— catkin 安装后的规范位置
+      2. 包内 .env
+      3. 仓库根 config/.env      —— git 仓库布局下的开发者位置
+      4. 仓库根 .env
+    """
+    repo_root = os.path.dirname(os.path.dirname(_pkg_root()))
+    candidates = [
+        os.path.join(_pkg_root(), "config", ".env"),
+        os.path.join(_pkg_root(), ".env"),
+        os.path.join(repo_root, "config", ".env"),
+        os.path.join(repo_root, ".env"),
+    ]
+    for path in candidates:
         if not os.path.exists(path):
             continue
         with open(path, "r", encoding="utf-8") as f:

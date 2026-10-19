@@ -86,3 +86,19 @@ roslaunch llm_robot_agent gazebo.launch         # 高级机器人（带雷达）
 
 合并完成后，`four_car_sim.old` 可以删除。`src_backup/` 目录同理，
 其中只保留了 `car.urdf` 的早期版本，已被当前版本覆盖。
+
+---
+
+## 附：LLM 接入链路修复（2026-10-19 晚）
+
+排查「API 明明配过却仍走离线模式」时定位到 4 处独立缺陷，均会导致链路静默降级：
+
+| # | 缺陷 | 表现 | 修复 |
+|---|---|---|---|
+| 1 | `agent.yaml` 硬编码 `base_url`/`model` | `.env` 里的网关配置被永久覆盖，请求打到官方域名 | 两个字段默认留空，让环境变量生效；`create_llm` 把空串视为「未配置」 |
+| 2 | `_load_dotenv` 只查包内 `config/.env` | 仓库根 `config/.env` 被忽略 | 增加 4 级查找，含仓库根 |
+| 3 | `LLMClient` 不读 `DEEPSEEK_MODEL` | `.env` 按文档写的 `DEEPSEEK_MODEL` 不生效，退回 `deepseek-chat` | 优先级链加入 `DEEPSEEK_MODEL` |
+| 4 | `run()` 只返回 `message` | 调用方按 `summary` 取值会 `KeyError` | 双键并存 |
+
+**诊断口诀**：启动横幅打印的 `LLM=LLMClient` / `LLM=OfflinePlanner` 就是唯一判据。
+看到 `OfflinePlanner` 时不必猜，直接按上表四层依次排查。

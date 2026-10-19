@@ -5,8 +5,10 @@
 llm:
   # 优先从环境变量 DEEPSEEK_API_KEY 读取；也可直接写在这里（不推荐提交到仓库）
   api_key_env: DEEPSEEK_API_KEY
-  base_url: https://api.deepseek.com/v1
-  model: deepseek-chat
+  # base_url / model 留空 = 由环境变量 DEEPSEEK_BASE_URL / DEEPSEEK_MODEL 决定。
+  # 只有在需要「配置文件强制覆盖 .env」时才在这里填写，否则会掩盖 .env 的配置。
+  base_url:
+  model:
   temperature: 0.1
   timeout_sec: 60
   max_retries: 2

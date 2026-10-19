@@ -162,11 +162,46 @@ python robot_ws/src/llm_robot_agent/scripts/web_server.py --backend mock
 
 ```bash
 cp config/.env.example config/.env
-# 编辑 config/.env，填入 DEEPSEEK_API_KEY
+# 编辑 config/.env，按 A 或 B 两种接法之一填写
 ```
+
+**接法 A（DeepSeek 官方）**
+
+```ini
+DEEPSEEK_API_KEY=sk-xxxxxxxx
+DEEPSEEK_BASE_URL=https://api.deepseek.com/v1
+DEEPSEEK_MODEL=deepseek-chat
+```
+
+**接法 B（OpenAI 兼容网关，本项目实测可用）**
+
+```ini
+DEEPSEEK_API_KEY=<网关下发的 Key>
+DEEPSEEK_BASE_URL=https://amr-link.open-design.ai/v1
+DEEPSEEK_MODEL=deepseek-v4.1-flash
+```
+
+配置生效的判定方式——启动横幅会直接打印实际使用的类：
+
+```
+[配置] 后端=MockBackend  LLM=LLMClient        ← 已接上真实模型
+[配置] 后端=MockBackend  LLM=OfflinePlanner   ← 仍走降级规则引擎
+```
+
+`.env` 的查找顺序（先命中者优先，后命中只补齐缺失项）：
+
+1. `robot_ws/src/llm_robot_agent/config/.env`（catkin 安装后的规范位置）
+2. `robot_ws/src/llm_robot_agent/.env`
+3. `<仓库根>/config/.env`
+4. `<仓库根>/.env`
+
+变量优先级：显式构造参数 > `LLM_*` > `DEEPSEEK_*`。
+`config/agent.yaml` 中 `llm.base_url` / `llm.model` **默认为空**，
+此时由环境变量决定；一旦在 YAML 里写了值，就会强制覆盖 `.env`。
 
 未配置 Key 时自动降级为 `OfflinePlanner`（规则引擎），
 断网也能完整演示主干流程——这一点对答辩现场很关键。
+
 
 ### 3.4 ROS 1 环境（WSL2 / Ubuntu 20.04）
 
@@ -224,8 +259,8 @@ catkin_make && source devel/setup.bash
 |---|---|---|---|
 | 一、仿真环境 | `gazebo.launch` + 键盘遥控 | Gazebo 中机器人可移动 | 代码就绪，待实机验证 |
 | 二、自主导航 | `navigation.launch` + RViz 点目标 | 机器人绕障到达 | 代码就绪，待建图 |
-| 三、LLM Agent | `full_system.launch task:="..."` | 多地点任务自主完成 | 逻辑已验证（Mock） |
-| 三、异常处理 | `--fault room_a:blocked` | 失败后自动重试成功 | 已验证 |
+| 三、LLM Agent | `full_system.launch task:="..."` | 多地点任务自主完成 | 真实模型已验证（Mock 后端） |
+| 三、异常处理 | `--fault room_a:blocked` | 失败后自动重试成功 | 已验证（真实模型自主重试） |
 | 四、扩展 | `web_server.py` | 浏览器完成任务并看到轨迹 | 已验证（Mock） |
 
 ---
@@ -234,7 +269,7 @@ catkin_make && source devel/setup.bash
 
 ```
 $ python -m pytest tests/ -q
-31 passed in 0.08s
+31 passed in 0.10s
 
 $ python demos/demo.py
   场景 1: 通过   多地点连续任务        → room_a, room_b, home 全部到达
@@ -242,6 +277,40 @@ $ python demos/demo.py
   场景 3: 通过   目标不可达            → room_c 仅尝试 1 次即跳过，其余完成
   场景 4: 通过   混合故障长任务        → 2 次重试成功，1 个跳过，重规划 2 次
 ```
+
+**真实 LLM 闭环验证**（`deepseek-v4.1-flash` @ `amr-link.open-design.ai`，
+Mock 后端 + 故障注入，2026-10-19）：
+
+```
+$ python agent_run.py --backend mock \
+      --task "去房间D检查一下，然后回起点" --fault room_d:blocked:1
+
+[配置] 后端=MockBackend  LLM=LLMClient
+--- 第 1 轮 --- [行动] navigate_to({"location": "room_d"})
+                [观察] [FAIL:BLOCKED] 途中遇到障碍物……
+--- 第 2 轮 --- [行动] navigate_to({"location": "room_d"})
+                [观察] [OK] 已到达 room_d
+--- 第 3 轮 --- [行动] navigate_to({"location": "home"})
+                [观察] [OK] 已到达 home
+--- 第 4 轮 --- [行动] report_done({...})
+
+耗时 10.0s | 轮数 4 | 工具调用 4 | 重规划 1
+```
+
+关键观察：第 2 轮的重试**不是**由代码硬编码触发的，而是模型读到
+`BLOCKED` 观察结果后自行决定的；第 4 轮的汇报里模型主动说明
+「本机无摄像头能力，未做视觉检查」，没有虚构视觉结论。
+
+反向验证（不可达场景，`room_a:unreachable`）：
+
+```
+耗时 7.5s | 轮数 3
+navigate_to → GOAL_UNREACHABLE
+get_robot_state → 确认位置未变
+report_blocked → "错误码明确表示重复尝试不会改变结果，故未重试"
+```
+
+两条不对称策略均生效：`BLOCKED` 重试、`GOAL_UNREACHABLE` 立即放弃。
 
 ---
 
@@ -252,6 +321,16 @@ $ python demos/demo.py
 1. `maps/indoor.yaml` 尚未生成 —— 需在 ROS 环境中先建图，否则 `navigation.launch` 会失败。
 2. `config/locations.yaml` 中的坐标是基于世界文件估算的，建图后需用 RViz 校准。
 3. 尚未在真实 Gazebo 中端到端跑通（当前验证止于 Mock 后端）。
+
+**安全提示（重要）**
+
+`config/.env.example` 在早期提交（`1551921` / `b50d773`）中曾携带真实的 API Key，
+该值已随 Git 历史留存。当前版本已替换为占位符 `your_api_key_here`。
+该仓库为私有仓库，且 `config/.env` 已被 `.gitignore` 排除，日常使用中
+**不要把 Key 写进任何被 git 跟踪的文件**，只放在 `config/.env` 里即可。
+
+如需彻底清除历史中的明文，可重写 Git 历史（`git filter-repo`），
+代价是全部 commit SHA 变更；当前不做此操作，避免影响已有记录。
 
 **阶段四路线**
 

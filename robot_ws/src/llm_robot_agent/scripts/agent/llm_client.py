@@ -67,10 +67,20 @@ class LLMClient:
         max_retries: int = 2,
     ):
         self.api_key = api_key or os.getenv("DEEPSEEK_API_KEY") or os.getenv("OPENAI_API_KEY")
-        self.base_url = (base_url or os.getenv("LLM_BASE_URL")
-                         or os.getenv("DEEPSEEK_BASE_URL")
-                         or "https://api.deepseek.com/v1").rstrip("/")
-        self.model = model or os.getenv("LLM_MODEL") or "deepseek-chat"
+        # 显式参数 > LLM_* > DEEPSEEK_* >
+        # .env 约定的 DEEPSEEK_MODEL（2026-10 新增，见 config/.env.example）> 默认值
+        self.base_url = (
+            base_url
+            or os.getenv("LLM_BASE_URL")
+            or os.getenv("DEEPSEEK_BASE_URL")
+            or "https://api.deepseek.com/v1"
+        ).rstrip("/")
+        self.model = (
+            model
+            or os.getenv("LLM_MODEL")
+            or os.getenv("DEEPSEEK_MODEL")
+            or "deepseek-chat"
+        )
         self.temperature = temperature
         self.timeout = timeout
         self.max_retries = max_retries
@@ -245,7 +255,7 @@ def create_llm(cfg: Optional[Dict[str, Any]] = None, offline_fallback: bool = Tr
     """
     cfg = cfg or {}
     key_env = cfg.get("api_key_env", "DEEPSEEK_API_KEY")
-    api_key = os.getenv(key_env) or os.getenv("DEEPSEEK_API_KEY")
+    api_key = cfg.get("api_key") or os.getenv(key_env) or os.getenv("DEEPSEEK_API_KEY")
 
     if not api_key:
         if offline_fallback:
@@ -255,10 +265,14 @@ def create_llm(cfg: Optional[Dict[str, Any]] = None, offline_fallback: bool = Tr
             return OfflinePlanner()
         raise RuntimeError(f"缺少环境变量 {key_env}")
 
+    # 空字符串 / None 一律视为「未配置」，交由环境变量决定
+    base_url = (cfg.get("base_url") or "").strip() or None
+    model = (cfg.get("model") or "").strip() or None
+
     return LLMClient(
         api_key=api_key,
-        base_url=cfg.get("base_url"),
-        model=cfg.get("model"),
+        base_url=base_url,
+        model=model,
         temperature=float(cfg.get("temperature", 0.1)),
         timeout=float(cfg.get("timeout_sec", 60)),
         max_retries=int(cfg.get("max_retries", 2)),
