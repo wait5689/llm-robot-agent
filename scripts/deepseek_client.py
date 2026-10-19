@@ -7,7 +7,7 @@ DeepSeek LLM 客户端
 
 import os
 import json
-from openai import OpenAI
+import requests
 
 
 class DeepSeekClient:
@@ -29,10 +29,10 @@ class DeepSeekClient:
         if not self.api_key:
             raise ValueError("请设置 DEEPSEEK_API_KEY 环境变量或传入 api_key 参数")
         
-        self.client = OpenAI(
-            api_key=self.api_key,
-            base_url=self.base_url
-        )
+        self.headers = {
+            'Authorization': f'Bearer {self.api_key}',
+            'Content-Type': 'application/json'
+        }
         
         print(f"DeepSeek 客户端初始化完成，模型: {self.model}")
     
@@ -49,28 +49,30 @@ class DeepSeekClient:
             dict: 响应结果
         """
         try:
-            kwargs = {
+            url = f"{self.base_url}/chat/completions"
+            
+            payload = {
                 'model': self.model,
                 'messages': messages,
                 'temperature': temperature,
             }
             
             if tools:
-                kwargs['tools'] = tools
-                kwargs['tool_choice'] = 'auto'
+                payload['tools'] = tools
+                payload['tool_choice'] = 'auto'
             
-            response = self.client.chat.completions.create(**kwargs)
+            response = requests.post(url, headers=self.headers, json=payload, timeout=30)
+            response.raise_for_status()
+            
+            data = response.json()
+            choice = data['choices'][0]
             
             return {
                 'success': True,
-                'content': response.choices[0].message.content,
-                'tool_calls': response.choices[0].message.tool_calls,
-                'finish_reason': response.choices[0].finish_reason,
-                'usage': {
-                    'prompt_tokens': response.usage.prompt_tokens,
-                    'completion_tokens': response.usage.completion_tokens,
-                    'total_tokens': response.usage.total_tokens
-                }
+                'content': choice['message'].get('content', ''),
+                'tool_calls': choice['message'].get('tool_calls', []),
+                'finish_reason': choice.get('finish_reason', ''),
+                'usage': data.get('usage', {})
             }
         except Exception as e:
             return {
