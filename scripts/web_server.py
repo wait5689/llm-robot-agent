@@ -26,11 +26,23 @@ def init_ros():
     """初始化 ROS 节点"""
     global robot_controller
     try:
-        rospy.init_node('web_robot_agent', anonymous=True)
+        # 检查是否已经初始化
+        if not rospy.core.is_initialized():
+            rospy.init_node('web_robot_agent', anonymous=True)
+            print("ROS 节点初始化成功")
+        else:
+            print("ROS 节点已存在，直接使用")
+        
         robot_controller = RobotController()
         print("ROS 控制器初始化成功")
     except Exception as e:
-        print(f"ROS 初始化失败: {e}")
+        print(f"ROS 初始化失败：{e}")
+        # 即使初始化失败，也尝试创建控制器
+        try:
+            robot_controller = RobotController()
+            print("ROS 控制器创建成功（使用现有节点）")
+        except Exception as e2:
+            print(f"ROS 控制器创建也失败：{e2}")
 
 
 def init_llm():
@@ -49,7 +61,7 @@ def init_llm():
         llm_client = DeepSeekClient()
         print("LLM 客户端初始化成功")
     except Exception as e:
-        print(f"LLM 初始化失败: {e}")
+        print(f"LLM 初始化失败：{e}")
 
 
 @app.route('/')
@@ -119,7 +131,7 @@ def execute_command():
             elif tool_name == 'get_position':
                 result = robot_controller.get_position()
             else:
-                result = {'success': False, 'message': f'未知工具: {tool_name}'}
+                result = {'success': False, 'message': f'未知工具：{tool_name}'}
             
             results.append({
                 'tool': tool_name,
@@ -201,7 +213,7 @@ if __name__ == '__main__':
     # 启动 Web 服务器
     print("\n" + "="*50)
     print("LLM Robot Agent Web 界面已启动")
-    print("打开浏览器访问: http://localhost:5000")
+    print("打开浏览器访问：http://localhost:5000")
     print("="*50 + "\n")
     
     app.run(host='0.0.0.0', port=5000, debug=False)
