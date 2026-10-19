@@ -49,3 +49,7 @@ Thumbs.db
 # Temporary files
 *.tmp
 *.bak
+
+# Environment variables
+.env
+config/.env

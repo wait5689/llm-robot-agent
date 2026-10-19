@@ -5,23 +5,46 @@ LLM Robot Agent - 基于大语言模型的自主移动机器人 Agent
 核心 Agent 类：接收自然语言指令，调用 LLM 理解任务，执行机器人控制
 """
 
+import os
 import json
 import rospy
 from ros_tools import RobotController
+from deepseek_client import DeepSeekClient
 
 
 class LLMRobotAgent:
     """LLM 机器人 Agent - 自然语言控制机器人"""
     
-    def __init__(self, llm_client=None):
+    def __init__(self, use_llm=True):
         """
         初始化 Agent
         
         参数:
-            llm_client: LLM 客户端（OpenAI/Anthropic 等）
+            use_llm: 是否使用 LLM（默认 True，False 则使用规则解析）
         """
         self.robot = RobotController()
-        self.llm_client = llm_client
+        self.use_llm = use_llm
+        
+        # 初始化 LLM 客户端
+        if self.use_llm:
+            try:
+                # 加载环境变量
+                env_path = os.path.join(os.path.dirname(__file__), '..', 'config', '.env')
+                if os.path.exists(env_path):
+                    with open(env_path) as f:
+                        for line in f:
+                            if '=' in line and not line.startswith('#'):
+                                key, value = line.strip().split('=', 1)
+                                os.environ[key] = value
+                
+                self.llm_client = DeepSeekClient()
+                rospy.loginfo("DeepSeek LLM 客户端初始化成功")
+            except Exception as e:
+                rospy.logwarn(f"LLM 初始化失败，使用规则解析: {e}")
+                self.use_llm = False
+                self.llm_client = None
+        else:
+            self.llm_client = None
         
         # 工具定义 - 供 LLM 调用
         self.tools = {
@@ -56,7 +79,7 @@ class LLMRobotAgent:
     
     def parse_task(self, natural_language_input):
         """
-        解析自然语言任务（调用 LLM）
+        解析自然语言任务（调用 LLM 或规则解析）
         
         参数:
             natural_language_input: 用户的自然语言指令
@@ -64,14 +87,36 @@ class LLMRobotAgent:
         返回:
             list: 任务步骤列表
         """
-        # TODO: 接入真实的 LLM API
-        # 这里先用简单的规则解析作为示例
+        # 使用 LLM 解析
+        if self.use_llm and self.llm_client:
+            rospy.loginfo("使用 DeepSeek LLM 解析任务...")
+            available_tools = list(self.tools.keys())
+            task_steps = self.llm_client.parse_task(natural_language_input, available_tools)
+            
+            if task_steps:
+                rospy.loginfo(f"LLM 解析成功: {len(task_steps)} 个步骤")
+                return task_steps
+            else:
+                rospy.logwarn("LLM 解析失败，回退到规则解析")
         
+        # 回退到规则解析
+        rospy.loginfo("使用规则解析...")
+        return self._parse_with_rules(natural_language_input)
+    
+    def _parse_with_rules(self, natural_language_input):
+        """
+        使用规则解析任务（备用方案）
+        
+        参数:
+            natural_language_input: 用户的自然语言指令
+        
+        返回:
+            list: 任务步骤列表
+        """
         task_steps = []
         
         # 简单的关键词匹配
         if '前进' in natural_language_input or '向前' in natural_language_input:
-            # 提取距离
             import re
             distance_match = re.search(r'(\d+\.?\d*)\s*米', natural_language_input)
             distance = float(distance_match.group(1)) if distance_match else 1.0
