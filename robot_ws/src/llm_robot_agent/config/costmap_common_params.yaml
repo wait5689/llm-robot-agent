@@ -25,7 +25,8 @@ obstacle_layer:
   observation_sources: scan
   scan:
     data_type: LaserScan
-    topic: scan
+    topic: /scan
+    sensor_frame: laser_link
     marking: true
     clearing: true
     max_obstacle_height: 1.2
