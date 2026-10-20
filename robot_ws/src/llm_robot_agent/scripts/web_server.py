@@ -37,6 +37,7 @@ from flask_cors import CORS  # noqa: E402
 
 from agent import LLMRobotAgent, LocationMap, MockBackend, create_llm  # noqa: E402
 from agent.backends.ros_backend import ROS_AVAILABLE, RosBackend  # noqa: E402
+from agent.backends.http_backend import HttpBackend  # noqa: E402
 
 log = logging.getLogger(__name__)
 
@@ -105,7 +106,7 @@ def _load_dotenv() -> None:
                     os.environ.setdefault(k.strip(), v.strip())
 
 
-def init_system(backend_name: str = "auto") -> None:
+def init_system(backend_name: str = "auto", bridge_url: str = "http://localhost:9090") -> None:
     """初始化后端与 Agent。auto = 有 ROS 用 ROS，否则用 Mock。"""
     global _backend, _agent, _locations
 
@@ -122,6 +123,13 @@ def init_system(backend_name: str = "auto") -> None:
             _locations,
             goal_tolerance=float(nav.get("goal_tolerance", 0.30)),
             default_timeout=float(nav.get("nav_timeout_sec", 120)),
+        )
+    elif backend_name == "http":
+        nav = cfg.get("navigation", {})
+        _backend = HttpBackend(
+            _locations,
+            bridge_url=bridge_url,
+            timeout_sec=float(nav.get("nav_timeout_sec", 120)),
         )
     else:
         if backend_name == "ros":
@@ -338,7 +346,9 @@ def main() -> int:
     import argparse
 
     parser = argparse.ArgumentParser(description="LLM Robot Agent Web UI")
-    parser.add_argument("--backend", choices=["auto", "mock", "ros"], default="auto")
+    parser.add_argument("--backend", choices=["auto", "mock", "ros", "http"], default="auto")
+    parser.add_argument("--bridge-url", default="http://localhost:9090",
+                        help="WSL 侧 nav_bridge 的地址 (默认 http://localhost:9090)")
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=5000)
     args = parser.parse_args()
@@ -346,7 +356,7 @@ def main() -> int:
     logging.basicConfig(
         level=logging.INFO, format="%(asctime)s %(levelname)-7s | %(message)s"
     )
-    init_system(args.backend)
+    init_system(args.backend, bridge_url=args.bridge_url)
 
     print("=" * 60)
     print(f"  后端：{_backend.name()}")

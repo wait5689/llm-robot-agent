@@ -421,5 +421,10 @@ class LLMRobotAgent:
 
     def _say(self, text: str) -> None:
         if self.verbose:
-            print(text, flush=True)
+            try:
+                print(text, flush=True)
+            except UnicodeEncodeError:
+                # Windows GBK 终端无法输出 ✓✗ 等 Unicode 字符，回退到 ASCII
+                safe = text.replace("✓", "[OK]").replace("✗", "[FAIL]")
+                print(safe.encode("utf-8", errors="replace").decode("utf-8", errors="replace"), flush=True)
         log.info(text)

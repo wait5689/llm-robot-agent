@@ -4,12 +4,13 @@ from .contracts import ErrorCode, PlanStep, RobotState, StepStatus, TaskRecord, 
 from .core import LLMRobotAgent
 from .llm_client import LLMClient, OfflinePlanner, create_llm
 from .backends.mock_backend import MockBackend
+from .backends.http_backend import HttpBackend
 from .tools.locations import LocationMap, default_location_map
 from .tools.registry import ToolRegistry, ToolSpec, build_default_tools
 
 __all__ = [
     "ErrorCode", "PlanStep", "RobotState", "StepStatus", "TaskRecord", "ToolResult",
     "LLMRobotAgent", "LLMClient", "OfflinePlanner", "create_llm",
-    "MockBackend", "LocationMap", "default_location_map",
+    "MockBackend", "HttpBackend", "LocationMap", "default_location_map",
     "ToolRegistry", "ToolSpec", "build_default_tools",
 ]

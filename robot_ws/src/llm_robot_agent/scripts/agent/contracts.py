@@ -44,6 +44,16 @@ class ErrorCode(str, Enum):
     TOOL_NOT_FOUND = "TOOL_NOT_FOUND"        # 模型幻觉出了不存在的工具
     BUDGET_EXCEEDED = "BUDGET_EXCEEDED"      # 轮数/时间用尽
 
+    @classmethod
+    def from_value(cls, raw: str, default=None) -> "ErrorCode":
+        """把字符串安全地转回枚举；找不到就返回 default（或 NONE）。"""
+        if not raw:
+            return default or cls.NONE
+        for member in cls:
+            if member.value == raw:
+                return member
+        return default or cls.NONE
+
 
 class StepStatus(str, Enum):
     PENDING = "pending"
