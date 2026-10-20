@@ -17,14 +17,14 @@
       <real_time_update_rate>1000</real_time_update_rate>
     </physics>
 
-    <!-- 渲染：启用阴影 -->
+    <!-- 渲染：室内偏暗氛围 -->
     <scene>
-      <ambient>0.35 0.35 0.38 1</ambient>
-      <background>0.50 0.52 0.55 1</background>
+      <ambient>0.18 0.18 0.22 1</ambient>
+      <background>0.30 0.32 0.35 1</background>
       <shadows>true</shadows>
     </scene>
 
-    <!-- 太阳光（主光源） -->
+    <!-- 太阳光（减弱，模拟室内透过窗户的自然光） -->
     <include>
       <uri>model://sun</uri>
     </include>
@@ -57,38 +57,38 @@
       </link>
     </model>
 
-    <!-- 室内点光源 -->
+    <!-- 室内点光源（暖色吊灯，适度亮度） -->
     <light name="indoor_light_center" type="point">
       <pose>0 0 2.3 0 0 0</pose>
-      <diffuse>0.95 0.90 0.80 1</diffuse>
-      <specular>0.3 0.3 0.3 1</specular>
+      <diffuse>0.70 0.65 0.55 1</diffuse>
+      <specular>0.15 0.15 0.15 1</specular>
       <attenuation>
-        <range>12.0</range>
-        <constant>0.4</constant>
-        <linear>0.08</linear>
-        <quadratic>0.01</quadratic>
+        <range>10.0</range>
+        <constant>0.6</constant>
+        <linear>0.12</linear>
+        <quadratic>0.02</quadratic>
       </attenuation>
       <cast_shadows>true</cast_shadows>
     </light>
     <light name="indoor_light_north" type="point">
       <pose>0 3.0 2.3 0 0 0</pose>
-      <diffuse>0.90 0.88 0.80 1</diffuse>
+      <diffuse>0.65 0.60 0.50 1</diffuse>
       <attenuation>
-        <range>8.0</range>
-        <constant>0.5</constant>
-        <linear>0.1</linear>
-        <quadratic>0.01</quadratic>
+        <range>7.0</range>
+        <constant>0.7</constant>
+        <linear>0.15</linear>
+        <quadratic>0.02</quadratic>
       </attenuation>
       <cast_shadows>false</cast_shadows>
     </light>
     <light name="indoor_light_south" type="point">
       <pose>0 -3.0 2.3 0 0 0</pose>
-      <diffuse>0.90 0.88 0.80 1</diffuse>
+      <diffuse>0.65 0.60 0.50 1</diffuse>
       <attenuation>
-        <range>8.0</range>
-        <constant>0.5</constant>
-        <linear>0.1</linear>
-        <quadratic>0.01</quadratic>
+        <range>7.0</range>
+        <constant>0.7</constant>
+        <linear>0.15</linear>
+        <quadratic>0.02</quadratic>
       </attenuation>
       <cast_shadows>false</cast_shadows>
     </light>
