@@ -22,11 +22,12 @@
 
 frame_id: map
 
-# 机器人每次任务开始时的默认点位（与 four_car_sim/advanced.launch 的 spawn 位置一致）
+# 机器人每次任务开始时的默认点位（充电桩旁，南区）
+# 与 Web UI 地图上的  起点位置一致
 home:
-  position: [0.00, 0.00]
-  yaw: 0.0
-  description: "起点 / 走廊中央"
+  position: [0.80, -3.60]
+  yaw: 1.5708
+  description: "起点 / 充电桩，南区中央"
 
 locations:
   # ---- 北区：三个房间 ----
