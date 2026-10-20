@@ -226,6 +226,111 @@ def api_stats():
     return jsonify({"ok": True, "stats": stats.to_dict() if hasattr(stats, "to_dict") else {}})
 
 
+@app.route("/api/navigate", methods=["POST"])
+def api_navigate():
+    """导航到指定语义地点"""
+    payload = request.get_json(silent=True) or {}
+    target = (payload.get("target") or "").strip()
+
+    if not target:
+        return jsonify({"ok": False, "error": "目标地点不能为空"}), 400
+
+    if not _locations:
+        return jsonify({"ok": False, "error": "地点表未加载"}), 500
+
+    resolved = _locations.resolve(target)
+    if not resolved:
+        return jsonify({"ok": False, "error": f"未知地点: {target}，可用: {_locations.known_names()}"}), 400
+
+    pose = _locations.pose(resolved)
+    if not pose:
+        return jsonify({"ok": False, "error": f"地点 {resolved} 无坐标"}), 500
+
+    instruction = f"前往{resolved}"
+    desc = _locations.describe(resolved)
+
+    # 复用执行锁
+    acquired = _task_lock.acquire(blocking=False)
+    if not acquired:
+        return jsonify({"ok": False, "error": "机器人正在执行其他任务，请稍候"}), 409
+
+    try:
+        _current.update(
+            running=True,
+            instruction=instruction,
+            started_at=time.time(),
+            elapsed=0.0,
+            stage="navigating",
+        )
+        _current["logs"] = [f"[{time.strftime('%H:%M:%S')}] 开始导航: {resolved} ({desc})"]
+
+        result = _agent.run(instruction)
+
+        record = {
+            "instruction": instruction,
+            "target": resolved,
+            "description": desc,
+            "success": result.get("success", False),
+            "message": result.get("message", ""),
+            "turns": result.get("turns", 0),
+            "tool_calls": result.get("tool_calls", 0),
+            "elapsed_sec": result.get("elapsed_sec", 0),
+            "finished_at": time.time(),
+        }
+        with _lock:
+            _history.append(record)
+            del _history[:-MAX_HISTORY]
+
+        return jsonify({
+            "ok": True,
+            "target": resolved,
+            "description": desc,
+            "pose": {"x": pose[0], "y": pose[1], "yaw": pose[2]},
+            "result": record,
+            "robot": _backend.get_state().to_dict(),
+        })
+    except Exception as exc:  # noqa: BLE001
+        log.exception("导航执行异常")
+        return jsonify({"ok": False, "error": str(exc)}), 500
+    finally:
+        _current.update(running=False, stage="idle", elapsed=time.time() - (_current["started_at"] or time.time()))
+        _task_lock.release()
+
+
+@app.route("/api/cancel", methods=["POST"])
+def api_cancel():
+    """取消当前任务"""
+    if not _current.get("running"):
+        return jsonify({"ok": True, "message": "当前无运行中的任务"})
+
+    _current.update(running=False, stage="cancelled", elapsed=time.time() - (_current["started_at"] or time.time()))
+    _current["logs"].append(f"[{time.strftime('%H:%M:%S')}] 用户取消任务")
+
+    if _backend and hasattr(_backend, "cancel"):
+        _backend.cancel()
+
+    return jsonify({"ok": True, "message": "任务已取消"})
+
+
+@app.route("/api/locations")
+def api_locations():
+    """获取所有可用地点"""
+    if not _locations:
+        return jsonify({"ok": False, "error": "地点表未加载"}), 500
+
+    locs = []
+    for name in _locations.known_names():
+        pose = _locations.pose(name)
+        locs.append({
+            "name": name,
+            "description": _locations.describe(name),
+            "x": pose[0] if pose else 0,
+            "y": pose[1] if pose else 0,
+            "yaw": pose[2] if pose else 0,
+        })
+    return jsonify({"ok": True, "locations": locs})
+
+
 # ---------------------------------------------------------------------------
 # 启动
 # ---------------------------------------------------------------------------

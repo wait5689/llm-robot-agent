@@ -5,629 +5,503 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>LLM Robot Agent - 智能机器人控制系统</title>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-        
+        * { margin: 0; padding: 0; box-sizing: border-box; }
         :root {
-            --primary: #6366f1;
-            --primary-dark: #4f46e5;
-            --secondary: #ec4899;
-            --success: #10b981;
-            --warning: #f59e0b;
-            --danger: #ef4444;
-            --dark: #1e293b;
-            --light: #f8fafc;
-            --gray: #64748b;
+            --primary: #6366f1; --primary-dark: #4f46e5; --secondary: #ec4899;
+            --success: #10b981; --warning: #f59e0b; --danger: #ef4444;
+            --dark: #1e293b; --light: #f8fafc; --gray: #64748b;
         }
-        
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
-            padding: 20px;
-            color: var(--dark);
+            min-height: 100vh; padding: 20px; color: var(--dark);
         }
-        
-        .container {
-            max-width: 1400px;
-            margin: 0 auto;
-        }
-        
-        /* Header */
-        .header {
-            text-align: center;
-            margin-bottom: 40px;
-            animation: fadeInDown 0.8s ease;
-        }
-        
-        .header h1 {
-            color: white;
-            font-size: 3em;
-            font-weight: 700;
-            margin-bottom: 10px;
-            text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
-        }
-        
-        .header p {
-            color: rgba(255,255,255,0.9);
-            font-size: 1.2em;
-        }
-        
-        /* Grid Layout */
-        .grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 25px;
-            margin-bottom: 25px;
-        }
-        
-        @media (max-width: 968px) {
-            .grid {
-                grid-template-columns: 1fr;
-            }
-        }
-        
-        /* Cards */
-        .card {
-            background: white;
-            border-radius: 20px;
-            padding: 30px;
-            box-shadow: 0 20px 60px rgba(0,0,0,0.15);
-            animation: fadeInUp 0.8s ease;
-            transition: transform 0.3s ease, box-shadow 0.3s ease;
-        }
-        
-        .card:hover {
-            transform: translateY(-5px);
-            box-shadow: 0 25px 70px rgba(0,0,0,0.2);
-        }
-        
-        .card-title {
-            font-size: 1.5em;
-            font-weight: 600;
-            margin-bottom: 20px;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-        
-        .card-title .icon {
-            width: 40px;
-            height: 40px;
-            background: linear-gradient(135deg, var(--primary), var(--secondary));
-            border-radius: 10px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 1.2em;
-        }
-        
-        /* Control Panel */
-        .input-group {
-            display: flex;
-            gap: 12px;
-            margin-bottom: 20px;
-        }
-        
-        .input-group input {
-            flex: 1;
-            padding: 16px 20px;
-            border: 2px solid #e2e8f0;
-            border-radius: 12px;
-            font-size: 16px;
-            transition: all 0.3s ease;
-            outline: none;
-        }
-        
-        .input-group input:focus {
-            border-color: var(--primary);
-            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
-        }
-        
-        .btn {
-            padding: 16px 32px;
-            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
-            color: white;
-            border: none;
-            border-radius: 12px;
-            font-size: 16px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-        
-        .btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 10px 30px rgba(99, 102, 241, 0.4);
-        }
-        
-        .btn:active {
-            transform: translateY(0);
-        }
-        
-        .btn:disabled {
-            opacity: 0.6;
-            cursor: not-allowed;
-            transform: none;
-        }
-        
-        /* Quick Commands */
-        .quick-commands {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 10px;
-        }
-        
-        .quick-btn {
-            padding: 10px 18px;
-            background: #f1f5f9;
-            border: 2px solid transparent;
-            border-radius: 25px;
-            cursor: pointer;
-            font-size: 14px;
-            font-weight: 500;
-            transition: all 0.3s ease;
-            display: flex;
-            align-items: center;
-            gap: 6px;
-        }
-        
-        .quick-btn:hover {
-            background: var(--primary);
-            color: white;
-            transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(99, 102, 241, 0.3);
-        }
-        
-        /* Status Grid */
-        .status-grid {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 15px;
-        }
-        
-        .status-item {
-            background: linear-gradient(135deg, #f8fafc, #e2e8f0);
-            padding: 20px;
-            border-radius: 15px;
-            text-align: center;
-            transition: all 0.3s ease;
-        }
-        
-        .status-item:hover {
-            transform: scale(1.05);
-        }
-        
-        .status-item label {
-            display: block;
-            color: var(--gray);
-            font-size: 13px;
-            font-weight: 500;
-            margin-bottom: 8px;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-        }
-        
-        .status-item .value {
-            font-size: 28px;
-            font-weight: 700;
-            color: var(--primary);
-        }
-        
-        /* Result Box */
-        .result-box {
-            background: #f8fafc;
-            border-radius: 15px;
-            padding: 20px;
-            max-height: 500px;
-            overflow-y: auto;
-        }
-        
-        .result-box::-webkit-scrollbar {
-            width: 8px;
-        }
-        
-        .result-box::-webkit-scrollbar-track {
-            background: #f1f5f9;
-            border-radius: 10px;
-        }
-        
-        .result-box::-webkit-scrollbar-thumb {
-            background: var(--primary);
-            border-radius: 10px;
-        }
-        
-        .result-item {
-            background: white;
-            padding: 18px;
-            border-radius: 12px;
-            margin-bottom: 12px;
-            border-left: 4px solid var(--success);
-            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
-            animation: slideIn 0.5s ease;
-        }
-        
-        .result-item.error {
-            border-left-color: var(--danger);
-        }
-        
-        .result-item h3 {
-            color: var(--dark);
-            margin-bottom: 10px;
-            font-size: 15px;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-        
-        .result-item p {
-            color: var(--gray);
-            font-size: 13px;
-            margin: 6px 0;
-            line-height: 1.6;
-        }
-        
-        /* Loading */
-        .loading {
-            text-align: center;
-            padding: 40px 20px;
-        }
-        
-        .spinner {
-            width: 50px;
-            height: 50px;
-            border: 4px solid #f3f4f6;
-            border-top: 4px solid var(--primary);
-            border-radius: 50%;
-            animation: spin 1s linear infinite;
-            margin: 0 auto 15px;
-        }
-        
-        .loading p {
-            color: var(--primary);
-            font-weight: 500;
-        }
-        
-        /* Animations */
-        @keyframes fadeInDown {
-            from {
-                opacity: 0;
-                transform: translateY(-30px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-        
-        @keyframes fadeInUp {
-            from {
-                opacity: 0;
-                transform: translateY(30px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-        
-        @keyframes slideIn {
-            from {
-                opacity: 0;
-                transform: translateX(-20px);
-            }
-            to {
-                opacity: 1;
-                transform: translateX(0);
-            }
-        }
-        
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-        
-        /* Empty State */
-        .empty-state {
-            text-align: center;
-            padding: 40px 20px;
-            color: var(--gray);
-        }
-        
-        .empty-state .icon {
-            font-size: 3em;
-            margin-bottom: 15px;
-            opacity: 0.5;
-        }
-        
-        /* Badge */
-        .badge {
-            display: inline-block;
-            padding: 4px 10px;
-            background: var(--success);
-            color: white;
-            border-radius: 20px;
-            font-size: 12px;
-            font-weight: 600;
-        }
-        
-        .badge.error {
-            background: var(--danger);
-        }
+        .container { max-width: 1400px; margin: 0 auto; }
+        .header { text-align: center; margin-bottom: 25px; animation: fadeInDown 0.8s ease; }
+        .header h1 { color: white; font-size: 2.6em; font-weight: 700; margin-bottom: 6px; text-shadow: 2px 2px 4px rgba(0,0,0,0.2); }
+        .header p { color: rgba(255,255,255,0.9); font-size: 1.1em; }
+        .sys-info { display: flex; justify-content: center; gap: 12px; margin-top: 10px; }
+        .sys-badge { padding: 5px 14px; background: rgba(255,255,255,0.15); border-radius: 20px; color: white; font-size: 12px; backdrop-filter: blur(10px); }
+
+        .tab-nav { display: flex; justify-content: center; gap: 10px; margin-bottom: 22px; }
+        .tab-btn { padding: 11px 26px; background: rgba(255,255,255,0.2); color: white; border: 2px solid rgba(255,255,255,0.3); border-radius: 28px; cursor: pointer; font-size: 14px; font-weight: 600; transition: all 0.3s ease; backdrop-filter: blur(10px); }
+        .tab-btn:hover { background: rgba(255,255,255,0.3); transform: translateY(-2px); }
+        .tab-btn.active { background: white; color: var(--primary); border-color: white; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; animation: fadeInUp 0.5s ease; }
+
+        .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; margin-bottom: 22px; }
+        @media (max-width: 968px) { .grid { grid-template-columns: 1fr; } }
+
+        .card { background: white; border-radius: 18px; padding: 26px; box-shadow: 0 20px 60px rgba(0,0,0,0.15); animation: fadeInUp 0.8s ease; transition: transform 0.3s ease; }
+        .card:hover { transform: translateY(-3px); }
+        .card-title { font-size: 1.3em; font-weight: 600; margin-bottom: 18px; display: flex; align-items: center; gap: 10px; }
+        .card-title .icon { width: 36px; height: 36px; background: linear-gradient(135deg, var(--primary), var(--secondary)); border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 1em; }
+
+        .input-group { display: flex; gap: 10px; margin-bottom: 16px; }
+        .input-group input { flex: 1; padding: 13px 16px; border: 2px solid #e2e8f0; border-radius: 12px; font-size: 14px; transition: all 0.3s ease; outline: none; }
+        .input-group input:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(99,102,241,0.1); }
+        .btn { padding: 13px 24px; background: linear-gradient(135deg, var(--primary), var(--primary-dark)); color: white; border: none; border-radius: 12px; font-size: 14px; font-weight: 600; cursor: pointer; transition: all 0.3s ease; display: inline-flex; align-items: center; gap: 8px; }
+        .btn:hover { transform: translateY(-2px); box-shadow: 0 10px 30px rgba(99,102,241,0.4); }
+        .btn:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
+        .btn-danger { background: linear-gradient(135deg, var(--danger), #dc2626); }
+        .btn-success { background: linear-gradient(135deg, var(--success), #059669); }
+        .btn-sm { padding: 8px 16px; font-size: 13px; border-radius: 10px; }
+
+        .quick-commands { display: flex; flex-wrap: wrap; gap: 8px; }
+        .quick-btn { padding: 9px 15px; background: #f1f5f9; border: 2px solid transparent; border-radius: 22px; cursor: pointer; font-size: 13px; font-weight: 500; transition: all 0.3s ease; display: flex; align-items: center; gap: 6px; }
+        .quick-btn:hover { background: var(--primary); color: white; transform: translateY(-2px); box-shadow: 0 5px 15px rgba(99,102,241,0.3); }
+
+        .status-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+        .status-item { background: linear-gradient(135deg, #f8fafc, #e2e8f0); padding: 16px; border-radius: 14px; text-align: center; transition: all 0.3s ease; }
+        .status-item:hover { transform: scale(1.03); }
+        .status-item label { display: block; color: var(--gray); font-size: 11px; font-weight: 500; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 1px; }
+        .status-item .value { font-size: 22px; font-weight: 700; color: var(--primary); }
+
+        /* Navigation Map */
+        .nav-map { position: relative; width: 100%; height: 340px; background: linear-gradient(135deg, #0f172a, #1e293b); border-radius: 14px; overflow: hidden; margin-bottom: 16px; border: 1px solid rgba(255,255,255,0.1); }
+        .map-grid-bg { position: absolute; top: 0; left: 0; right: 0; bottom: 0; background-image: linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px); background-size: 34px 34px; }
+        .map-wall { position: absolute; background: rgba(100,116,139,0.5); border: 1px solid rgba(148,163,184,0.3); }
+        .map-room { position: absolute; border: 2px solid rgba(255,255,255,0.2); border-radius: 8px; display: flex; flex-direction: column; align-items: center; justify-content: center; color: white; cursor: pointer; transition: all 0.3s ease; text-align: center; padding: 4px; }
+        .map-room:hover { transform: scale(1.06); border-color: white; box-shadow: 0 0 20px rgba(99,102,241,0.5); z-index: 5; }
+        .map-room .rm-label { font-size: 12px; font-weight: 700; }
+        .map-room .rm-desc { font-size: 9px; opacity: 0.7; margin-top: 2px; }
+        .map-room.room-a { background: rgba(99,102,241,0.25); }
+        .map-room.room-b { background: rgba(236,72,153,0.25); }
+        .map-room.room-c { background: rgba(16,185,129,0.25); }
+        .map-room.room-d { background: rgba(245,158,11,0.25); }
+        .map-room.corridor { background: rgba(139,92,246,0.15); border-style: dashed; }
+        .map-room.hall { background: rgba(6,182,212,0.2); }
+        .map-room.home { background: rgba(34,197,94,0.25); }
+        .map-robot { position: absolute; width: 18px; height: 18px; background: var(--success); border: 3px solid white; border-radius: 50%; transform: translate(-50%, -50%); transition: all 0.8s cubic-bezier(0.4,0,0.2,1); box-shadow: 0 0 15px rgba(16,185,129,0.8); z-index: 10; }
+        .map-robot::after { content: ''; position: absolute; top: -7px; left: 50%; transform: translateX(-50%); width: 0; height: 0; border-left: 5px solid transparent; border-right: 5px solid transparent; border-bottom: 7px solid white; }
+        .map-target { position: absolute; width: 14px; height: 14px; background: var(--danger); border: 2px solid white; border-radius: 50%; transform: translate(-50%, -50%); animation: pulse 1.5s infinite; z-index: 5; display: none; }
+        @keyframes pulse { 0%,100% { box-shadow: 0 0 0 0 rgba(239,68,68,0.7); } 50% { box-shadow: 0 0 0 10px rgba(239,68,68,0); } }
+        .map-label { position: absolute; color: rgba(255,255,255,0.35); font-size: 10px; font-family: monospace; }
+
+        .nav-status { background: linear-gradient(135deg, #f8fafc, #e2e8f0); border-radius: 12px; padding: 14px; margin-bottom: 14px; display: flex; align-items: center; gap: 12px; }
+        .nav-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--gray); flex-shrink: 0; }
+        .nav-dot.active { background: var(--success); animation: blink 1s infinite; }
+        .nav-dot.error { background: var(--danger); }
+        @keyframes blink { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
+        .nav-text { flex: 1; font-size: 13px; color: var(--dark); font-weight: 500; }
+
+        .wp-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+        @media (max-width: 968px) { .wp-grid { grid-template-columns: repeat(3, 1fr); } }
+        .wp-btn { padding: 10px 6px; background: linear-gradient(135deg, #f8fafc, #e2e8f0); border: 2px solid transparent; border-radius: 12px; cursor: pointer; font-size: 12px; font-weight: 600; transition: all 0.3s ease; text-align: center; }
+        .wp-btn:hover { border-color: var(--primary); transform: translateY(-2px); }
+        .wp-btn .wp-name { display: block; margin-bottom: 2px; color: var(--dark); font-size: 13px; }
+        .wp-btn .wp-coord { display: block; font-size: 10px; color: var(--gray); font-family: monospace; }
+
+        .result-box { background: #f8fafc; border-radius: 14px; padding: 18px; max-height: 420px; overflow-y: auto; }
+        .result-box::-webkit-scrollbar { width: 6px; }
+        .result-box::-webkit-scrollbar-track { background: #f1f5f9; border-radius: 10px; }
+        .result-box::-webkit-scrollbar-thumb { background: var(--primary); border-radius: 10px; }
+        .result-item { background: white; padding: 16px; border-radius: 12px; margin-bottom: 10px; border-left: 4px solid var(--success); box-shadow: 0 2px 10px rgba(0,0,0,0.05); animation: slideIn 0.5s ease; }
+        .result-item.error { border-left-color: var(--danger); }
+        .result-item h3 { color: var(--dark); margin-bottom: 8px; font-size: 14px; display: flex; align-items: center; gap: 8px; }
+        .result-item p { color: var(--gray); font-size: 13px; margin: 4px 0; line-height: 1.5; }
+        .badge { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; color: white; }
+        .badge-ok { background: var(--success); } .badge-err { background: var(--danger); }
+        .badge-warn { background: var(--warning); } .badge-info { background: var(--primary); }
+
+        .loading { text-align: center; padding: 40px 20px; }
+        .spinner { width: 42px; height: 42px; border: 4px solid #f3f4f6; border-top: 4px solid var(--primary); border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 12px; }
+        .loading p { color: var(--primary); font-weight: 500; }
+        .empty-state { text-align: center; padding: 40px 20px; color: var(--gray); }
+        .empty-state .icon { font-size: 3em; margin-bottom: 15px; opacity: 0.5; }
+
+        @keyframes fadeInDown { from { opacity: 0; transform: translateY(-30px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes fadeInUp { from { opacity: 0; transform: translateY(30px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes slideIn { from { opacity: 0; transform: translateX(-20px); } to { opacity: 1; transform: translateX(0); } }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
 </head>
 <body>
     <div class="container">
-        <!-- Header -->
         <div class="header">
             <h1>🤖 LLM Robot Agent</h1>
-            <p>基于大语言模型的智能机器人控制系统</p>
+            <p>基于大语言模型的自主移动机器人 Agent 系统</p>
+            <div class="sys-info">
+                <span class="sys-badge" id="sysBackend">检测中...</span>
+                <span class="sys-badge" id="sysLLM">-</span>
+            </div>
         </div>
-        
-        <!-- Main Grid -->
-        <div class="grid">
-            <!-- Control Panel -->
-            <div class="card">
-                <div class="card-title">
-                    <div class="icon"></div>
-                    <span>控制面板</span>
+
+        <div class="tab-nav">
+            <button class="tab-btn active" onclick="switchTab('navigation', this)">🧭 自主导航</button>
+            <button class="tab-btn" onclick="switchTab('llm', this)">🧠 LLM 指令</button>
+            <button class="tab-btn" onclick="switchTab('control', this)">🎮 基础控制</button>
+        </div>
+
+        <!-- Tab 1: Navigation -->
+        <div id="tab-navigation" class="tab-content active">
+            <div class="grid">
+                <div class="card">
+                    <div class="card-title"><div class="icon">🗺️</div><span>室内地图</span></div>
+                    <div class="nav-map" id="navMap">
+                        <div class="map-grid-bg"></div>
+                        <div class="map-robot" id="robotDot" style="top:50%;left:50%;"></div>
+                        <div class="map-target" id="targetDot"></div>
+                    </div>
+                    <div class="nav-status">
+                        <div class="nav-dot" id="navDot"></div>
+                        <div class="nav-text" id="navText">导航系统就绪</div>
+                        <button class="btn btn-danger btn-sm" onclick="cancelTask()" id="cancelBtn" style="display:none;">取消</button>
+                    </div>
                 </div>
-                
+                <div class="card">
+                    <div class="card-title"><div class="icon">📍</div><span>导航目标</span></div>
+                    <div class="wp-grid" id="wpGrid"></div>
+                    <div style="margin-top:18px;">
+                        <div style="font-size:1.1em;font-weight:600;margin-bottom:12px;display:flex;align-items:center;gap:8px;">
+                            <div style="width:30px;height:30px;background:linear-gradient(135deg,var(--primary),var(--secondary));border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:0.9em;">📊</div>
+                            实时位姿
+                        </div>
+                        <div class="status-grid">
+                            <div class="status-item"><label>X (m)</label><div class="value" id="posX">0.000</div></div>
+                            <div class="status-item"><label>Y (m)</label><div class="value" id="posY">0.000</div></div>
+                            <div class="status-item"><label>Yaw</label><div class="value" id="posTheta">0.0°</div></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab 2: LLM -->
+        <div id="tab-llm" class="tab-content">
+            <div class="card">
+                <div class="card-title"><div class="icon">🧠</div><span>自然语言指令</span></div>
                 <div class="input-group">
-                    <input type="text" id="commandInput" placeholder="输入自然语言任务，例如：去房间 A 看看，然后去房间 B，最后回到起点" />
-                    <button class="btn" onclick="executeCommand()" id="executeBtn">
-                        <span>▶</span>
-                        <span>执行</span>
-                    </button>
+                    <input type="text" id="cmdInput" placeholder="输入指令，例如：去房间 A 检查，然后前往房间 B，最后回到起点" />
+                    <button class="btn" onclick="executeCommand()" id="execBtn"><span>▶</span><span>执行</span></button>
                 </div>
                 <div class="quick-commands">
-                    <button class="quick-btn" onclick="quickCommand('去房间 A 检查一下，然后前往房间 B，最后回到起点')">A → B → 起点</button>
-                    <button class="quick-btn" onclick="quickCommand('先到走廊，再去房间 D，然后返回起点')">走廊 → D → 起点</button>
-                    <button class="quick-btn" onclick="quickCommand('去房间 C，遇到障碍就重新规划')">C（含绕障）</button>
-                    <button class="quick-btn" onclick="quickCommand('你现在在哪里')">查看位置</button>
+                    <button class="quick-btn" onclick="quickCmd('去房间 A 检查一下，然后前往房间 B，最后回到起点')">🔄 A→B→起点</button>
+                    <button class="quick-btn" onclick="quickCmd('先到走廊，再去房间 D，然后返回起点')">🔄 走廊→D→起点</button>
+                    <button class="quick-btn" onclick="quickCmd('去房间 C，遇到障碍就重新规划')">⚠️ C（含绕障）</button>
+                    <button class="quick-btn" onclick="quickCmd('你现在在哪里')">📍 查看位置</button>
+                    <button class="quick-btn" onclick="quickCmd('前往大厅')">🏛️ 去大厅</button>
+                    <button class="quick-btn" onclick="quickCmd('回到起点')">🏠 回起点</button>
                 </div>
             </div>
-            
-            <!-- Status Panel -->
-            <div class="card">
-                <div class="card-title">
-                    <div class="icon">📊</div>
-                    <span>实时位姿</span>
-                </div>
-                
-                <div class="status-grid">
-                    <div class="status-item">
-                        <label>X 坐标</label>
-                        <div class="value" id="posX">0.000</div>
-                    </div>
-                    <div class="status-item">
-                        <label>Y 坐标</label>
-                        <div class="value" id="posY">0.000</div>
-                    </div>
-                    <div class="status-item">
-                        <label>角度</label>
-                        <div class="value" id="posTheta">0.000°</div>
-                    </div>
-                </div>
-                <div style="margin-top:14px;padding-top:12px;border-top:1px solid #e2e8f0;
-                            font-size:12.5px;color:var(--gray);">
-                    运行环境：<span id="backendBadge">检测中...</span>
+            <div class="card" style="margin-top:22px;">
+                <div class="card-title"><div class="icon">📋</div><span>执行结果</span></div>
+                <div id="llmResultBox" class="result-box">
+                    <div class="empty-state"><div class="icon">🧠</div><p>输入自然语言指令</p><p style="font-size:13px;margin-top:8px;">LLM 将自动规划并执行任务</p></div>
                 </div>
             </div>
         </div>
-        
-        <!-- Results Panel -->
-        <div class="card">
-            <div class="card-title">
-                <div class="icon">📋</div>
-                <span>执行结果</span>
+
+        <!-- Tab 3: Basic Control -->
+        <div id="tab-control" class="tab-content">
+            <div class="grid">
+                <div class="card">
+                    <div class="card-title"><div class="icon">🎮</div><span>快捷指令</span></div>
+                    <div class="quick-commands">
+                        <button class="quick-btn" onclick="quickCmd('前往房间A')">🏢 去房间A</button>
+                        <button class="quick-btn" onclick="quickCmd('前往房间B')">🛋️ 去房间B</button>
+                        <button class="quick-btn" onclick="quickCmd('前往房间C')">📦 去房间C</button>
+                        <button class="quick-btn" onclick="quickCmd('前往房间D')">🛏️ 去房间D</button>
+                        <button class="quick-btn" onclick="quickCmd('前往走廊')">🚶 去走廊</button>
+                        <button class="quick-btn" onclick="quickCmd('前往大厅')">🏛️ 去大厅</button>
+                        <button class="quick-btn" onclick="quickCmd('回到起点')">🏠 回起点</button>
+                        <button class="quick-btn" onclick="quickCmd('你现在在哪里')">📍 查看位置</button>
+                    </div>
+                </div>
+                <div class="card">
+                    <div class="card-title"><div class="icon">📈</div><span>运行统计</span></div>
+                    <div id="statsBox" class="result-box" style="max-height:300px;">
+                        <div class="empty-state"><div class="icon">📈</div><p>执行任务后查看统计</p></div>
+                    </div>
+                </div>
             </div>
-            
-            <div id="resultBox" class="result-box">
-                <div class="empty-state">
-                    <div class="icon">🤖</div>
-                    <p>暂无执行记录</p>
-                    <p style="font-size: 14px; margin-top: 10px;">输入指令开始控制机器人</p>
+            <div class="card">
+                <div class="card-title"><div class="icon">📜</div><span>历史记录</span></div>
+                <div id="historyBox" class="result-box" style="max-height:300px;">
+                    <div class="empty-state"><div class="icon">📜</div><p>暂无历史记录</p></div>
                 </div>
             </div>
         </div>
     </div>
 
-    <script>
-        // 页面加载时获取状态
-        window.onload = function() {
-            updateStatus();
-            setInterval(updateStatus, 2000);
-        };
-        
-        // 回车键执行
-        document.getElementById('commandInput').addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') {
-                executeCommand();
-            }
+<script>
+// ==================== Map Config ====================
+const WORLD = { xMin: -6, xMax: 6, yMin: -5, yMax: 5 };
+const WW = WORLD.xMax - WORLD.xMin, WH = WORLD.yMax - WORLD.yMin;
+
+const ROOM_DEFS = {
+    room_a:    { cls:'room-a', label:'🏢 房间A', desc:'西北·办公室', x:-4.2, y:1.85, w:28, h:32 },
+    room_c:    { cls:'room-c', label:'📦 房间C', desc:'正北·储物间', x:0, y:2.15, w:22, h:32 },
+    room_b:    { cls:'room-b', label:'🛋️ 房间B', desc:'东北·客厅', x:4.15, y:1.75, w:28, h:32 },
+    room_d:    { cls:'room-d', label:'🛏️ 房间D', desc:'西南·卧室', x:-3.7, y:-2.2, w:28, h:28 },
+    corridor:  { cls:'corridor', label:'🚶 走廊', desc:'中央通道', x:0, y:-0.9, w:22, h:14 },
+    hall:      { cls:'hall', label:'🏛️ 大厅', desc:'南区活动区', x:3, y:-1.2, w:22, h:18 },
+    home:      { cls:'home', label:'🏠 起点', desc:'充电桩', x:0.8, y:-3.6, w:16, h:14 },
+};
+
+const WALLS = [
+    {x:-6,y:-5,w:12,h:0.15},{x:-6,y:4.85,w:12,h:0.15},
+    {x:-6,y:-5,w:0.15,h:10},{x:5.85,y:-5,w:0.15,h:10},
+    {x:-1.5,y:0.5,w:0.12,h:4.5},{x:1.5,y:0.5,w:0.12,h:4.5},
+    {x:-6,y:0.5,w:4.5,h:0.12},{x:1.5,y:0.5,w:4.5,h:0.12},
+];
+
+function w2m(wx, wy) {
+    return { left: ((wx - WORLD.xMin) / WW * 100) + '%', top: ((WORLD.yMax - wy) / WH * 100) + '%' };
+}
+
+function initMap() {
+    const map = document.getElementById('navMap');
+    WALLS.forEach(w => {
+        const el = document.createElement('div');
+        el.className = 'map-wall';
+        const p = w2m(w.x, w.y + w.h);
+        el.style.left = p.left; el.style.top = p.top;
+        el.style.width = (w.w / WW * 100) + '%';
+        el.style.height = (w.h / WH * 100) + '%';
+        map.appendChild(el);
+    });
+    [{t:'(-6,5)',l:'1%',tp:'1%'},{t:'(6,-5)',l:'90%',tp:'94%'},{t:'(0,0)',l:'48%',tp:'48%'}].forEach(l => {
+        const el = document.createElement('div');
+        el.className = 'map-label'; el.style.left = l.l; el.style.top = l.tp;
+        el.textContent = l.t; map.appendChild(el);
+    });
+    Object.entries(ROOM_DEFS).forEach(([name, d]) => {
+        const el = document.createElement('div');
+        el.className = 'map-room ' + d.cls;
+        const p = w2m(d.x, d.y);
+        el.style.left = `calc(${p.left} - ${d.w/2}%)`;
+        el.style.top = `calc(${p.top} - ${d.h/2}%)`;
+        el.style.width = d.w + '%'; el.style.height = d.h + '%';
+        el.innerHTML = `<span class="rm-label">${d.label}</span><span class="rm-desc">${d.desc}</span>`;
+        el.onclick = () => navigateTo(name);
+        map.appendChild(el);
+    });
+}
+
+function buildWaypoints() {
+    const grid = document.getElementById('wpGrid');
+    const icons = {room_a:'🏢',room_b:'🛋️',room_c:'📦',room_d:'🛏️',corridor:'🚶',hall:'🏛️',home:'🏠'};
+    Object.entries(ROOM_DEFS).forEach(([name, d]) => {
+        const btn = document.createElement('button');
+        btn.className = 'wp-btn';
+        btn.innerHTML = `<span class="wp-name">${icons[name]||''} ${name}</span><span class="wp-coord">(${d.x}, ${d.y})</span>`;
+        btn.onclick = () => navigateTo(name);
+        grid.appendChild(btn);
+    });
+}
+
+// ==================== Tab ====================
+function switchTab(tab, btn) {
+    document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+    document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+    document.getElementById('tab-' + tab).classList.add('active');
+    btn.classList.add('active');
+}
+
+// ==================== Navigation ====================
+async function navigateTo(target) {
+    const dot = document.getElementById('targetDot');
+    const def = ROOM_DEFS[target];
+    if (def) {
+        const p = w2m(def.x, def.y);
+        dot.style.left = p.left; dot.style.top = p.top;
+        dot.style.display = 'block';
+    }
+    setNavStatus('active', `正在导航到 ${target}...`);
+
+    try {
+        const res = await fetch('/api/navigate', {
+            method: 'POST', headers: {'Content-Type':'application/json'},
+            body: JSON.stringify({target})
         });
-        
-
-        // ============================================================
-        // 以下脚本为新版 Agent 接口实现（与 web_server.py 一一对应）
-        // ============================================================
-
-        const QUICK_COMMANDS = [
-            '去房间 A 检查一下，然后前往房间 B，最后回到起点',
-            '去房间 C，如果路上遇到障碍就重新规划',
-            '先到走廊，再去房间 D，然后返回起点'
-        ];
-
-        function quickCommand(cmd) {
-            document.getElementById('commandInput').value = cmd;
-            executeCommand();
+        const data = await res.json();
+        if (data.ok) {
+            setNavStatus('', `已到达 ${target}`);
+            showNavResult(data);
+        } else {
+            setNavStatus('error', data.error || '导航失败');
         }
+    } catch (e) {
+        setNavStatus('error', '请求失败: ' + e.message);
+    }
+    setTimeout(() => { document.getElementById('targetDot').style.display = 'none'; }, 5000);
+}
 
-        function escapeHtml(text) {
-            const div = document.createElement('div');
-            div.textContent = text == null ? '' : String(text);
-            return div.innerHTML;
+function setNavStatus(state, msg) {
+    const dot = document.getElementById('navDot');
+    const txt = document.getElementById('navText');
+    const btn = document.getElementById('cancelBtn');
+    dot.className = 'nav-dot' + (state === 'active' ? ' active' : state === 'error' ? ' error' : '');
+    txt.textContent = msg;
+    btn.style.display = state === 'active' ? 'block' : 'none';
+}
+
+function showNavResult(data) {
+    const box = document.getElementById('llmResultBox');
+    const r = data.result || {};
+    const ok = r.success;
+    let html = `<div class="result-item" style="border-left-color:${ok?'var(--success)':'var(--danger)'};">`;
+    html += `<h3>${ok?'✅ 导航完成':'❌ 导航失败'} <span class="badge ${ok?'badge-ok':'badge-err'}">${ok?'成功':'失败'}</span></h3>`;
+    html += `<p><strong>目标:</strong> ${data.target} - ${data.description||''}</p>`;
+    html += `<p><strong>结果:</strong> ${r.message||''}</p>`;
+    if (r.elapsed_sec) html += `<p style="color:var(--gray);font-size:12px;">耗时 ${r.elapsed_sec}s · ${r.turns||0} 轮决策</p>`;
+    html += `</div>`;
+    box.innerHTML = html;
+}
+
+async function cancelTask() {
+    try { await fetch('/api/cancel', {method:'POST'}); } catch(e) {}
+    setNavStatus('', '导航已取消');
+}
+
+// ==================== LLM Command ====================
+document.getElementById('cmdInput').addEventListener('keypress', e => { if (e.key === 'Enter') executeCommand(); });
+
+function quickCmd(cmd) { document.getElementById('cmdInput').value = cmd; executeCommand(); }
+
+async function executeCommand() {
+    const input = document.getElementById('cmdInput');
+    const cmd = input.value.trim();
+    if (!cmd) { alert('请输入指令'); return; }
+
+    const btn = document.getElementById('execBtn');
+    const box = document.getElementById('llmResultBox');
+    btn.disabled = true; btn.textContent = '执行中...';
+    box.innerHTML = '<div class="loading"><div class="spinner"></div><p>Agent 正在规划并执行任务...</p></div>';
+    setNavStatus('active', '执行: ' + cmd);
+
+    try {
+        const res = await fetch('/api/execute', {
+            method:'POST', headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({instruction: cmd})
+        });
+        const data = await res.json();
+        if (data.ok) {
+            displayResults(data.result, data.robot, data.stats);
+            input.value = '';
+            setNavStatus('', '任务完成');
+            updateHistory();
+        } else {
+            box.innerHTML = `<div class="result-item error"><h3>❌ 失败</h3><p>${esc(data.error)}</p></div>`;
+            setNavStatus('error', data.error);
         }
+    } catch (e) {
+        box.innerHTML = `<div class="result-item error"><h3>❌ 请求失败</h3><p>${esc(e.message)}</p></div>`;
+        setNavStatus('error', '请求失败');
+    } finally {
+        btn.disabled = false; btn.innerHTML = '<span>▶</span><span>执行</span>';
+        updateStatus();
+    }
+}
 
-        function statusBadge(status) {
-            const map = {
-                done:    ['成功', 'var(--success)'],
-                failed:  ['失败', 'var(--danger)'],
-                skipped: ['跳过', 'var(--warning)'],
-                pending: ['待执行', 'var(--gray)'],
-                running: ['执行中', 'var(--primary)']
-            };
-            const [label, color] = map[status] || [status, 'var(--gray)'];
-            return `<span style="display:inline-block;padding:2px 10px;border-radius:12px;
-                    background:${color};color:#fff;font-size:12px;font-weight:600;">${label}</span>`;
+function esc(t) { const d = document.createElement('div'); d.textContent = t||''; return d.innerHTML; }
+
+function displayResults(result, robot, stats) {
+    const box = document.getElementById('llmResultBox');
+    const ok = result.success;
+    let html = `<div class="result-item" style="border-left-color:${ok?'var(--success)':'var(--danger)'};">`;
+    html += `<h3>${ok?'任务完成':'任务未完全完成'} <span class="badge ${ok?'badge-ok':'badge-err'}">${ok?'成功':'失败'}</span></h3>`;
+    html += `<p style="white-space:pre-wrap;line-height:1.7;">${esc(result.message)}</p>`;
+    html += `<p style="margin-top:8px;color:var(--gray);font-size:12px;">${result.turns} 轮决策 · ${result.tool_calls} 次工具调用 · ${result.replans} 次重规划 · ${result.elapsed_sec}s</p></div>`;
+
+    if (result.steps && result.steps.length) {
+        html += `<div class="result-item" style="border-left-color:var(--primary);"><h3>执行计划</h3>`;
+        result.steps.forEach((s, i) => {
+            const c = s.status === 'done' ? '' : (s.status === 'skipped' ? 'error' : '');
+            html += `<div class="result-item ${c}" style="margin:8px 0;background:rgba(0,0,0,0.02);">`;
+            html += `<p><strong>${i+1}. ${esc(s.target||s.action)}</strong> <span class="badge ${s.status==='done'?'badge-ok':'badge-warn'}">${s.status}</span>`;
+            html += ` <span style="color:var(--gray);font-size:12px;">尝试 ${s.attempts||0} 次</span></p>`;
+            if (s.purpose) html += `<p style="color:var(--gray);font-size:12px;">目的: ${esc(s.purpose)}</p>`;
+            html += `</div>`;
+        });
+        html += `</div>`;
+    }
+
+    if (result.trace && result.trace.length) {
+        html += `<div class="result-item" style="border-left-color:var(--secondary);"><h3>决策轨迹</h3>`;
+        html += `<div style="max-height:200px;overflow:auto;font-family:ui-monospace,monospace;font-size:12px;line-height:1.8;">`;
+        result.trace.forEach(t => {
+            html += `<div style="padding:3px 0;border-bottom:1px dashed #e2e8f0;">`;
+            html += `<span style="color:${t.ok?'var(--success)':'var(--danger)'};font-weight:700;">${t.ok?'OK':t.error_code}</span> `;
+            html += `第${t.turn}轮 · ${esc(t.tool)} · ${t.latency_ms}ms<br>`;
+            html += `<span style="color:var(--gray);">${esc(t.observation)}</span></div>`;
+        });
+        html += `</div></div>`;
+    }
+
+    if (robot) {
+        html += `<div class="result-item" style="border-left-color:var(--primary);"><h3>最终位置</h3>`;
+        html += `<p>X: ${Number(robot.x).toFixed(2)}m · Y: ${Number(robot.y).toFixed(2)}m · 朝向: ${(Number(robot.yaw)*180/Math.PI).toFixed(0)}°</p></div>`;
+    }
+    box.innerHTML = html;
+}
+
+// ==================== Status ====================
+async function updateStatus() {
+    try {
+        const res = await fetch('/api/status');
+        const data = await res.json();
+        if (!data.ok || !data.robot) return;
+        const r = data.robot;
+        document.getElementById('posX').textContent = Number(r.x).toFixed(3);
+        document.getElementById('posY').textContent = Number(r.y).toFixed(3);
+        document.getElementById('posTheta').textContent = (Number(r.yaw)*180/Math.PI).toFixed(1) + '°';
+
+        const rp = w2m(Number(r.x), Number(r.y));
+        document.getElementById('robotDot').style.left = rp.left;
+        document.getElementById('robotDot').style.top = rp.top;
+
+        document.getElementById('sysBackend').textContent = '后端: ' + data.backend;
+        document.getElementById('sysLLM').textContent = 'LLM: ' + (data.llm || '-');
+
+        if (data.current_task && data.current_task.running) {
+            setNavStatus('active', data.current_task.instruction || '执行中...');
+        } else if (data.current_task && data.current_task.stage === 'idle') {
+            const dot = document.getElementById('navDot');
+            if (dot.classList.contains('active')) setNavStatus('', '就绪');
         }
+    } catch (e) { console.error('状态更新失败:', e); }
+}
 
-        // ---------------- 执行任务 ----------------
-        async function executeCommand() {
-            const input = document.getElementById('commandInput');
-            const command = input.value.trim();
-            if (!command) {
-                alert('请输入指令');
-                return;
-            }
-
-            const btn = document.getElementById('executeBtn');
-            const resultBox = document.getElementById('resultBox');
-
-            btn.disabled = true;
-            btn.textContent = '执行中...';
-            resultBox.innerHTML =
-                '<div class="loading"><div class="spinner"></div><p>Agent 正在规划并执行任务...</p></div>';
-
-            try {
-                const response = await fetch('/api/execute', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ instruction: command })
-                });
-                const data = await response.json();
-
-                if (!data.ok) {
-                    resultBox.innerHTML =
-                        `<div class="result-item error"><h3>执行失败</h3>
-                         <p>${escapeHtml(data.error)}</p></div>`;
-                    return;
-                }
-
-                displayResults(data.result, data.robot, data.stats);
-                input.value = '';
-            } catch (error) {
-                resultBox.innerHTML =
-                    `<div class="result-item error"><h3>请求失败</h3>
-                     <p>${escapeHtml(error.message)}</p></div>`;
-            } finally {
-                btn.disabled = false;
-                btn.textContent = '执行';
-                updateStatus();
-            }
-        }
-
-        // ---------------- 渲染结果 ----------------
-        function displayResults(result, robot, stats) {
-            const box = document.getElementById('resultBox');
-            const ok = result.success;
+async function updateHistory() {
+    try {
+        const res = await fetch('/api/status');
+        const data = await res.json();
+        if (!data.ok) return;
+        const box = document.getElementById('historyBox');
+        const statsBox = document.getElementById('statsBox');
+        if (data.history && data.history.length) {
             let html = '';
-
-            html += `<div class="result-item" style="border-left-color:${ok ? 'var(--success)' : 'var(--danger)'};">
-                <h3>${ok ? '任务完成' : '任务未完全完成'} ${statusBadge(ok ? 'done' : 'failed')}</h3>
-                <p style="white-space:pre-wrap;line-height:1.7;">${escapeHtml(result.message)}</p>
-                <p style="margin-top:10px;color:var(--gray);font-size:13px;">
-                    ${result.turns} 轮决策 ·
-                    ${result.tool_calls} 次工具调用 ·
-                    ${result.replans} 次重规划 ·
-                    ${result.elapsed_sec}s
-                </p>
-            </div>`;
-
-            if (result.steps && result.steps.length) {
-                html += `<div class="result-item" style="border-left-color:var(--primary);">
-                    <h3>执行计划</h3>`;
-                result.steps.forEach((step, i) => {
-                    const cls = step.status === 'done' ? '' : (step.status === 'skipped' ? 'error' : '');
-                    html += `<div class="result-item ${cls}" style="margin:10px 0;background:rgba(0,0,0,0.02);">
-                        <p><strong>${i + 1}. ${escapeHtml(step.target || step.action)}</strong>
-                           ${statusBadge(step.status)}
-                           <span style="color:var(--gray);font-size:13px;">
-                           尝试 ${step.attempts || 0} 次${step.last_error ? ' · 上次错误 ' + escapeHtml(step.last_error) : ''}</span>
-                        </p>
-                        ${step.purpose ? `<p style="color:var(--gray);font-size:13px;">目的：${escapeHtml(step.purpose)}</p>` : ''}
-                    </div>`;
-                });
+            data.history.slice().reverse().forEach(h => {
+                const ok = h.success;
+                html += `<div class="result-item" style="border-left-color:${ok?'var(--success)':'var(--danger)'};">`;
+                html += `<h3>${ok?'✅':'❌'} ${esc(h.instruction)} <span class="badge ${ok?'badge-ok':'badge-err'}">${ok?'成功':'失败'}</span></h3>`;
+                html += `<p style="font-size:12px;color:var(--gray);">${h.turns||0} 轮 · ${h.tool_calls||0} 次调用 · ${h.elapsed_sec||0}s</p>`;
                 html += `</div>`;
-            }
-
-            if (result.trace && result.trace.length) {
-                html += `<div class="result-item" style="border-left-color:var(--secondary);">
-                    <h3>决策轨迹</h3>
-                    <div style="max-height:260px;overflow:auto;font-family:ui-monospace,monospace;font-size:12.5px;line-height:1.8;">`;
-                result.trace.forEach(t => {
-                    const color = t.ok ? 'var(--success)' : 'var(--danger)';
-                    html += `<div style="padding:4px 0;border-bottom:1px dashed #e2e8f0;">
-                        <span style="color:${color};font-weight:700;">${t.ok ? 'OK' : t.error_code}</span>
-                        &nbsp;第${t.turn}轮 · ${escapeHtml(t.tool)} · ${t.latency_ms}ms<br>
-                        <span style="color:var(--gray);">${escapeHtml(t.observation)}</span>
-                    </div>`;
-                });
-                html += `</div></div>`;
-            }
-
-            if (robot) {
-                html += `<div class="result-item" style="border-left-color:var(--primary);">
-                    <h3>最终位置</h3>
-                    <p>X: ${Number(robot.x).toFixed(2)} m ·
-                       Y: ${Number(robot.y).toFixed(2)} m ·
-                       朝向: ${(Number(robot.yaw) * 180 / Math.PI).toFixed(0)}° ·
-                       状态: ${escapeHtml(robot.nav_state)}</p>
-                </div>`;
-            }
-
-            if (stats && stats.total_distance_m !== undefined) {
-                html += `<div class="result-item" style="border-left-color:var(--gray);">
-                    <h3>运行统计</h3>
-                    <p>导航 ${stats.nav_calls} 次 · 成功 ${stats.nav_success} · 失败 ${stats.nav_failed} ·
-                       累计里程 ${stats.total_distance_m} m</p>
-                </div>`;
-            }
-
+            });
             box.innerHTML = html;
         }
-
-        // ---------------- 状态轮询 ----------------
-        async function updateStatus() {
-            try {
-                const response = await fetch('/api/status');
-                const data = await response.json();
-                if (!data.ok || !data.robot) return;
-
-                const r = data.robot;
-                document.getElementById('posX').textContent = Number(r.x).toFixed(3);
-                document.getElementById('posY').textContent = Number(r.y).toFixed(3);
-                document.getElementById('posTheta').textContent =
-                    (Number(r.yaw) * 180 / Math.PI).toFixed(1) + '°';
-
-                const badge = document.getElementById('backendBadge');
-                if (badge) {
-                    badge.textContent = `${data.backend} · ${data.llm}`;
-                }
-            } catch (error) {
-                console.error('更新状态失败:', error);
-            }
+        if (data.stats && Object.keys(data.stats).length) {
+            const s = data.stats;
+            statsBox.innerHTML = `<div class="result-item" style="border-left-color:var(--primary);">`;
+            statsBox.innerHTML += `<h3>运行统计</h3>`;
+            if (s.total_distance_m !== undefined) statsBox.innerHTML += `<p>累计里程: ${s.total_distance_m}m</p>`;
+            if (s.nav_calls !== undefined) statsBox.innerHTML += `<p>导航: ${s.nav_calls} 次 (成功 ${s.nav_success}, 失败 ${s.nav_failed})</p>`;
+            statsBox.innerHTML += `</div>`;
         }
+    } catch(e) {}
+}
 
-        // 初始化
-        updateStatus();
-        setInterval(updateStatus, 2000);
-    </script>
+// ==================== Init ====================
+window.onload = function() {
+    initMap();
+    buildWaypoints();
+    updateStatus();
+    setInterval(updateStatus, 2000);
+    setInterval(updateHistory, 10000);
+};
+</script>
 </body>
 </html>
