@@ -1,556 +1,978 @@
 <?xml version="1.0" ?>
+<!--
+  复杂室内环境（由 tools/gen_world.py 生成，请勿手工编辑）
+
+  布局：南区（活动区）+ 北区（三个房间），由一条走廊墙分隔，
+        墙上开 3 个门洞保证南北连通；北区两道隔墙靠近走廊端各开一门。
+
+  所有门宽 1.10 m，机器人直径 0.64 m，留有余量。
+  修改布局请改生成器参数后重新生成，并用 tools/audit_world.py 校验。
+-->
 <sdf version="1.4">
   <world name="complex_indoor">
-    <!-- 物理引擎 -->
     <physics type="ode">
       <max_step_size>0.001</max_step_size>
       <real_time_factor>1</real_time_factor>
       <real_time_update_rate>1000</real_time_update_rate>
     </physics>
 
-    <!-- 光照 -->
     <include>
       <uri>model://sun</uri>
     </include>
 
-    <!-- 地面 -->
     <include>
       <uri>model://ground_plane</uri>
     </include>
 
-    <!-- 外墙 - 北 -->
-    <model name="wall_north">
+    <!-- ============ 外墙 ============ -->
+    <model name="wall_north_0">
       <static>true</static>
-      <pose>0 5 0.5 0 0 0</pose>
+      <pose>0.000 5.000 0.500 0 0 0.0000</pose>
       <link name="link">
         <collision name="collision">
           <geometry>
-            <box>
-              <size>12 0.2 1</size>
-            </box>
+            <box><size>12.000 0.150 1.000</size></box>
           </geometry>
         </collision>
         <visual name="visual">
           <geometry>
-            <box>
-              <size>12 0.2 1</size>
-            </box>
+            <box><size>12.000 0.150 1.000</size></box>
           </geometry>
           <material>
-            <ambient>0.8 0.8 0.8 1</ambient>
-            <diffuse>0.8 0.8 0.8 1</diffuse>
+            <ambient>0.92 0.92 0.92 1</ambient>
+            <diffuse>0.92 0.92 0.92 1</diffuse>
           </material>
         </visual>
       </link>
     </model>
-
-    <!-- 外墙 - 南 -->
-    <model name="wall_south">
+    <model name="wall_south_0">
       <static>true</static>
-      <pose>0 -5 0.5 0 0 0</pose>
+      <pose>0.000 -5.000 0.500 0 0 0.0000</pose>
       <link name="link">
         <collision name="collision">
           <geometry>
-            <box>
-              <size>12 0.2 1</size>
-            </box>
+            <box><size>12.000 0.150 1.000</size></box>
           </geometry>
         </collision>
         <visual name="visual">
           <geometry>
-            <box>
-              <size>12 0.2 1</size>
-            </box>
+            <box><size>12.000 0.150 1.000</size></box>
           </geometry>
           <material>
-            <ambient>0.8 0.8 0.8 1</ambient>
-            <diffuse>0.8 0.8 0.8 1</diffuse>
+            <ambient>0.92 0.92 0.92 1</ambient>
+            <diffuse>0.92 0.92 0.92 1</diffuse>
           </material>
         </visual>
       </link>
     </model>
-
-    <!-- 外墙 - 东 -->
-    <model name="wall_east">
+    <model name="wall_east_0">
       <static>true</static>
-      <pose>6 0 0.5 0 0 0</pose>
+      <pose>6.000 0.000 0.500 0 0 0.0000</pose>
       <link name="link">
         <collision name="collision">
           <geometry>
-            <box>
-              <size>0.2 10 1</size>
-            </box>
+            <box><size>0.150 10.000 1.000</size></box>
           </geometry>
         </collision>
         <visual name="visual">
           <geometry>
-            <box>
-              <size>0.2 10 1</size>
-            </box>
+            <box><size>0.150 10.000 1.000</size></box>
           </geometry>
           <material>
-            <ambient>0.8 0.8 0.8 1</ambient>
-            <diffuse>0.8 0.8 0.8 1</diffuse>
+            <ambient>0.92 0.92 0.92 1</ambient>
+            <diffuse>0.92 0.92 0.92 1</diffuse>
           </material>
         </visual>
       </link>
     </model>
-
-    <!-- 外墙 - 西 -->
-    <model name="wall_west">
+    <model name="wall_west_0">
       <static>true</static>
-      <pose>-6 0 0.5 0 0 0</pose>
+      <pose>-6.000 0.000 0.500 0 0 0.0000</pose>
       <link name="link">
         <collision name="collision">
           <geometry>
-            <box>
-              <size>0.2 10 1</size>
-            </box>
+            <box><size>0.150 10.000 1.000</size></box>
           </geometry>
         </collision>
         <visual name="visual">
           <geometry>
-            <box>
-              <size>0.2 10 1</size>
-            </box>
+            <box><size>0.150 10.000 1.000</size></box>
           </geometry>
           <material>
-            <ambient>0.8 0.8 0.8 1</ambient>
-            <diffuse>0.8 0.8 0.8 1</diffuse>
+            <ambient>0.92 0.92 0.92 1</ambient>
+            <diffuse>0.92 0.92 0.92 1</diffuse>
           </material>
         </visual>
       </link>
     </model>
-
-    <!-- 内墙 - 分隔房间 A 和 B -->
-    <model name="wall_inner_1">
+    <!-- ============ 主分隔墙：南/北区分界，开 3 个门 ============ -->
+    <model name="wall_split_0">
       <static>true</static>
-      <pose>0 0 0.5 0 0 0</pose>
+      <pose>-5.275 0.000 0.500 0 0 0.0000</pose>
       <link name="link">
         <collision name="collision">
           <geometry>
-            <box>
-              <size>0.15 6 1</size>
-            </box>
+            <box><size>1.450 0.150 1.000</size></box>
           </geometry>
         </collision>
         <visual name="visual">
           <geometry>
-            <box>
-              <size>0.15 6 1</size>
-            </box>
+            <box><size>1.450 0.150 1.000</size></box>
           </geometry>
           <material>
-            <ambient>0.9 0.9 0.9 1</ambient>
-            <diffuse>0.9 0.9 0.9 1</diffuse>
+            <ambient>0.92 0.92 0.92 1</ambient>
+            <diffuse>0.92 0.92 0.92 1</diffuse>
           </material>
         </visual>
       </link>
     </model>
-
-    <!-- 内墙 - 分隔房间 C 和 D -->
-    <model name="wall_inner_2">
+    <model name="wall_split_lintel_1">
       <static>true</static>
-      <pose>-3 2.5 0.5 0 0 1.5708</pose>
+      <pose>-4.000 0.000 0.925 0 0 0.0000</pose>
       <link name="link">
         <collision name="collision">
           <geometry>
-            <box>
-              <size>0.15 3 1</size>
-            </box>
+            <box><size>1.100 0.150 0.150</size></box>
           </geometry>
         </collision>
         <visual name="visual">
           <geometry>
-            <box>
-              <size>0.15 3 1</size>
-            </box>
+            <box><size>1.100 0.150 0.150</size></box>
           </geometry>
           <material>
-            <ambient>0.9 0.9 0.9 1</ambient>
-            <diffuse>0.9 0.9 0.9 1</diffuse>
+            <ambient>0.92 0.92 0.92 1</ambient>
+            <diffuse>0.92 0.92 0.92 1</diffuse>
           </material>
         </visual>
       </link>
     </model>
-
-    <!-- 房间 A - 桌子 -->
+    <model name="wall_split_doorpost_1_l">
+      <static>true</static>
+      <pose>-4.550 0.000 0.500 0 0 0.0000</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box><size>0.040 0.150 1.000</size></box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box><size>0.040 0.150 1.000</size></box>
+          </geometry>
+          <material>
+            <ambient>0.70 0.70 0.70 1</ambient>
+            <diffuse>0.70 0.70 0.70 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+    <model name="wall_split_doorpost_1_r">
+      <static>true</static>
+      <pose>-3.450 0.000 0.500 0 0 0.0000</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box><size>0.040 0.150 1.000</size></box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box><size>0.040 0.150 1.000</size></box>
+          </geometry>
+          <material>
+            <ambient>0.70 0.70 0.70 1</ambient>
+            <diffuse>0.70 0.70 0.70 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+    <model name="wall_split_2">
+      <static>true</static>
+      <pose>-2.000 0.000 0.500 0 0 0.0000</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box><size>2.900 0.150 1.000</size></box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box><size>2.900 0.150 1.000</size></box>
+          </geometry>
+          <material>
+            <ambient>0.92 0.92 0.92 1</ambient>
+            <diffuse>0.92 0.92 0.92 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+    <model name="wall_split_lintel_3">
+      <static>true</static>
+      <pose>0.000 0.000 0.925 0 0 0.0000</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box><size>1.100 0.150 0.150</size></box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box><size>1.100 0.150 0.150</size></box>
+          </geometry>
+          <material>
+            <ambient>0.92 0.92 0.92 1</ambient>
+            <diffuse>0.92 0.92 0.92 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+    <model name="wall_split_doorpost_3_l">
+      <static>true</static>
+      <pose>-0.550 0.000 0.500 0 0 0.0000</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box><size>0.040 0.150 1.000</size></box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box><size>0.040 0.150 1.000</size></box>
+          </geometry>
+          <material>
+            <ambient>0.70 0.70 0.70 1</ambient>
+            <diffuse>0.70 0.70 0.70 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+    <model name="wall_split_doorpost_3_r">
+      <static>true</static>
+      <pose>0.550 0.000 0.500 0 0 0.0000</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box><size>0.040 0.150 1.000</size></box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box><size>0.040 0.150 1.000</size></box>
+          </geometry>
+          <material>
+            <ambient>0.70 0.70 0.70 1</ambient>
+            <diffuse>0.70 0.70 0.70 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+    <model name="wall_split_4">
+      <static>true</static>
+      <pose>2.000 0.000 0.500 0 0 0.0000</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box><size>2.900 0.150 1.000</size></box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box><size>2.900 0.150 1.000</size></box>
+          </geometry>
+          <material>
+            <ambient>0.92 0.92 0.92 1</ambient>
+            <diffuse>0.92 0.92 0.92 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+    <model name="wall_split_lintel_5">
+      <static>true</static>
+      <pose>4.000 0.000 0.925 0 0 0.0000</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box><size>1.100 0.150 0.150</size></box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box><size>1.100 0.150 0.150</size></box>
+          </geometry>
+          <material>
+            <ambient>0.92 0.92 0.92 1</ambient>
+            <diffuse>0.92 0.92 0.92 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+    <model name="wall_split_doorpost_5_l">
+      <static>true</static>
+      <pose>3.450 0.000 0.500 0 0 0.0000</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box><size>0.040 0.150 1.000</size></box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box><size>0.040 0.150 1.000</size></box>
+          </geometry>
+          <material>
+            <ambient>0.70 0.70 0.70 1</ambient>
+            <diffuse>0.70 0.70 0.70 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+    <model name="wall_split_doorpost_5_r">
+      <static>true</static>
+      <pose>4.550 0.000 0.500 0 0 0.0000</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box><size>0.040 0.150 1.000</size></box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box><size>0.040 0.150 1.000</size></box>
+          </geometry>
+          <material>
+            <ambient>0.70 0.70 0.70 1</ambient>
+            <diffuse>0.70 0.70 0.70 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+    <model name="wall_split_6">
+      <static>true</static>
+      <pose>5.275 0.000 0.500 0 0 0.0000</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box><size>1.450 0.150 1.000</size></box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box><size>1.450 0.150 1.000</size></box>
+          </geometry>
+          <material>
+            <ambient>0.92 0.92 0.92 1</ambient>
+            <diffuse>0.92 0.92 0.92 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+    <!-- ============ 北区隔墙：每道靠近走廊端开一门 ============ -->
+    <model name="wall_north_div1_0">
+      <static>true</static>
+      <pose>-2.500 0.425 0.500 0 0 0.0000</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box><size>0.150 0.850 1.000</size></box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box><size>0.150 0.850 1.000</size></box>
+          </geometry>
+          <material>
+            <ambient>0.92 0.92 0.92 1</ambient>
+            <diffuse>0.92 0.92 0.92 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+    <model name="wall_north_div1_lintel_1">
+      <static>true</static>
+      <pose>-2.500 1.400 0.925 0 0 0.0000</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box><size>0.150 1.100 0.150</size></box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box><size>0.150 1.100 0.150</size></box>
+          </geometry>
+          <material>
+            <ambient>0.92 0.92 0.92 1</ambient>
+            <diffuse>0.92 0.92 0.92 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+    <model name="wall_north_div1_doorpost_1_b">
+      <static>true</static>
+      <pose>-2.500 0.850 0.500 0 0 0.0000</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box><size>0.150 0.040 1.000</size></box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box><size>0.150 0.040 1.000</size></box>
+          </geometry>
+          <material>
+            <ambient>0.70 0.70 0.70 1</ambient>
+            <diffuse>0.70 0.70 0.70 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+    <model name="wall_north_div1_doorpost_1_t">
+      <static>true</static>
+      <pose>-2.500 1.950 0.500 0 0 0.0000</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box><size>0.150 0.040 1.000</size></box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box><size>0.150 0.040 1.000</size></box>
+          </geometry>
+          <material>
+            <ambient>0.70 0.70 0.70 1</ambient>
+            <diffuse>0.70 0.70 0.70 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+    <model name="wall_north_div1_2">
+      <static>true</static>
+      <pose>-2.500 3.475 0.500 0 0 0.0000</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box><size>0.150 3.050 1.000</size></box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box><size>0.150 3.050 1.000</size></box>
+          </geometry>
+          <material>
+            <ambient>0.92 0.92 0.92 1</ambient>
+            <diffuse>0.92 0.92 0.92 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+    <model name="wall_north_div2_0">
+      <static>true</static>
+      <pose>2.500 0.425 0.500 0 0 0.0000</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box><size>0.150 0.850 1.000</size></box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box><size>0.150 0.850 1.000</size></box>
+          </geometry>
+          <material>
+            <ambient>0.92 0.92 0.92 1</ambient>
+            <diffuse>0.92 0.92 0.92 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+    <model name="wall_north_div2_lintel_1">
+      <static>true</static>
+      <pose>2.500 1.400 0.925 0 0 0.0000</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box><size>0.150 1.100 0.150</size></box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box><size>0.150 1.100 0.150</size></box>
+          </geometry>
+          <material>
+            <ambient>0.92 0.92 0.92 1</ambient>
+            <diffuse>0.92 0.92 0.92 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+    <model name="wall_north_div2_doorpost_1_b">
+      <static>true</static>
+      <pose>2.500 0.850 0.500 0 0 0.0000</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box><size>0.150 0.040 1.000</size></box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box><size>0.150 0.040 1.000</size></box>
+          </geometry>
+          <material>
+            <ambient>0.70 0.70 0.70 1</ambient>
+            <diffuse>0.70 0.70 0.70 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+    <model name="wall_north_div2_doorpost_1_t">
+      <static>true</static>
+      <pose>2.500 1.950 0.500 0 0 0.0000</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box><size>0.150 0.040 1.000</size></box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box><size>0.150 0.040 1.000</size></box>
+          </geometry>
+          <material>
+            <ambient>0.70 0.70 0.70 1</ambient>
+            <diffuse>0.70 0.70 0.70 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+    <model name="wall_north_div2_2">
+      <static>true</static>
+      <pose>2.500 3.475 0.500 0 0 0.0000</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box><size>0.150 3.050 1.000</size></box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box><size>0.150 3.050 1.000</size></box>
+          </geometry>
+          <material>
+            <ambient>0.92 0.92 0.92 1</ambient>
+            <diffuse>0.92 0.92 0.92 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+    <!-- ============ 南区隔墙 ============ -->
+    <model name="wall_south_div_0">
+      <static>true</static>
+      <pose>-2.000 -4.025 0.500 0 0 0.0000</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box><size>0.150 1.950 1.000</size></box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box><size>0.150 1.950 1.000</size></box>
+          </geometry>
+          <material>
+            <ambient>0.92 0.92 0.92 1</ambient>
+            <diffuse>0.92 0.92 0.92 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+    <model name="wall_south_div_lintel_1">
+      <static>true</static>
+      <pose>-2.000 -2.500 0.925 0 0 0.0000</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box><size>0.150 1.100 0.150</size></box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box><size>0.150 1.100 0.150</size></box>
+          </geometry>
+          <material>
+            <ambient>0.92 0.92 0.92 1</ambient>
+            <diffuse>0.92 0.92 0.92 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+    <model name="wall_south_div_doorpost_1_b">
+      <static>true</static>
+      <pose>-2.000 -3.050 0.500 0 0 0.0000</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box><size>0.150 0.040 1.000</size></box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box><size>0.150 0.040 1.000</size></box>
+          </geometry>
+          <material>
+            <ambient>0.70 0.70 0.70 1</ambient>
+            <diffuse>0.70 0.70 0.70 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+    <model name="wall_south_div_doorpost_1_t">
+      <static>true</static>
+      <pose>-2.000 -1.950 0.500 0 0 0.0000</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box><size>0.150 0.040 1.000</size></box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box><size>0.150 0.040 1.000</size></box>
+          </geometry>
+          <material>
+            <ambient>0.70 0.70 0.70 1</ambient>
+            <diffuse>0.70 0.70 0.70 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+    <model name="wall_south_div_2">
+      <static>true</static>
+      <pose>-2.000 -0.975 0.500 0 0 0.0000</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box><size>0.150 1.950 1.000</size></box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box><size>0.150 1.950 1.000</size></box>
+          </geometry>
+          <material>
+            <ambient>0.92 0.92 0.92 1</ambient>
+            <diffuse>0.92 0.92 0.92 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+    <!-- ============ 家具与障碍 ============ -->
     <model name="table_a">
       <static>true</static>
-      <pose>-3 -2 0.4 0 0 0</pose>
+      <pose>-4.400 3.100 0.375 0 0 0.0000</pose>
       <link name="link">
         <collision name="collision">
           <geometry>
-            <box>
-              <size>1.2 0.8 0.05</size>
-            </box>
+            <box><size>1.200 0.800 0.750</size></box>
           </geometry>
         </collision>
         <visual name="visual">
           <geometry>
-            <box>
-              <size>1.2 0.8 0.05</size>
-            </box>
+            <box><size>1.200 0.800 0.750</size></box>
           </geometry>
           <material>
-            <ambient>0.6 0.4 0.2 1</ambient>
-            <diffuse>0.6 0.4 0.2 1</diffuse>
+            <ambient>0.55 0.38 0.22 1</ambient>
+            <diffuse>0.55 0.38 0.22 1</diffuse>
           </material>
         </visual>
       </link>
     </model>
-
-    <!-- 房间 A - 椅子 1 -->
     <model name="chair_a1">
       <static>true</static>
-      <pose>-3.5 -2 0.25 0 0 0</pose>
+      <pose>-4.400 2.450 0.275 0 0 0.0000</pose>
       <link name="link">
         <collision name="collision">
           <geometry>
-            <box>
-              <size>0.4 0.4 0.5</size>
-            </box>
+            <box><size>0.450 0.450 0.550</size></box>
           </geometry>
         </collision>
         <visual name="visual">
           <geometry>
-            <box>
-              <size>0.4 0.4 0.5</size>
-            </box>
+            <box><size>0.450 0.450 0.550</size></box>
           </geometry>
           <material>
-            <ambient>0.4 0.4 0.4 1</ambient>
-            <diffuse>0.4 0.4 0.4 1</diffuse>
+            <ambient>0.55 0.38 0.22 1</ambient>
+            <diffuse>0.55 0.38 0.22 1</diffuse>
           </material>
         </visual>
       </link>
     </model>
-
-    <!-- 房间 A - 椅子 2 -->
-    <model name="chair_a2">
+    <model name="shelf_a">
       <static>true</static>
-      <pose>-2.5 -2 0.25 0 0 0</pose>
+      <pose>-5.400 3.800 0.800 0 0 0.0000</pose>
       <link name="link">
         <collision name="collision">
           <geometry>
-            <box>
-              <size>0.4 0.4 0.5</size>
-            </box>
+            <box><size>0.350 1.500 1.600</size></box>
           </geometry>
         </collision>
         <visual name="visual">
           <geometry>
-            <box>
-              <size>0.4 0.4 0.5</size>
-            </box>
+            <box><size>0.350 1.500 1.600</size></box>
           </geometry>
           <material>
-            <ambient>0.4 0.4 0.4 1</ambient>
-            <diffuse>0.4 0.4 0.4 1</diffuse>
+            <ambient>0.55 0.38 0.22 1</ambient>
+            <diffuse>0.55 0.38 0.22 1</diffuse>
           </material>
         </visual>
       </link>
     </model>
-
-    <!-- 房间 B - 书架 -->
-    <model name="bookshelf_b">
-      <static>true</static>
-      <pose>3 2 0.75 0 0 0</pose>
-      <link name="link">
-        <collision name="collision">
-          <geometry>
-            <box>
-              <size>1.5 0.4 1.5</size>
-            </box>
-          </geometry>
-        </collision>
-        <visual name="visual">
-          <geometry>
-            <box>
-              <size>1.5 0.4 1.5</size>
-            </box>
-          </geometry>
-          <material>
-            <ambient>0.5 0.3 0.1 1</ambient>
-            <diffuse>0.5 0.3 0.1 1</diffuse>
-          </material>
-        </visual>
-      </link>
-    </model>
-
-    <!-- 房间 B - 沙发 -->
-    <model name="sofa_b">
-      <static>true</static>
-      <pose>3 -2 0.4 0 0 0</pose>
-      <link name="link">
-        <collision name="collision">
-          <geometry>
-            <box>
-              <size>2 0.8 0.8</size>
-            </box>
-          </geometry>
-        </collision>
-        <visual name="visual">
-          <geometry>
-            <box>
-              <size>2 0.8 0.8</size>
-            </box>
-          </geometry>
-          <material>
-            <ambient>0.2 0.4 0.6 1</ambient>
-            <diffuse>0.2 0.4 0.6 1</diffuse>
-          </material>
-        </visual>
-      </link>
-    </model>
-
-    <!-- 走廊 - 柱子 1 -->
-    <model name="pillar_1">
-      <static>true</static>
-      <pose>-1.5 0 0.5 0 0 0</pose>
-      <link name="link">
-        <collision name="collision">
-          <geometry>
-            <cylinder>
-              <radius>0.2</radius>
-              <length>1</length>
-            </cylinder>
-          </geometry>
-        </collision>
-        <visual name="visual">
-          <geometry>
-            <cylinder>
-              <radius>0.2</radius>
-              <length>1</length>
-            </cylinder>
-          </geometry>
-          <material>
-            <ambient>0.7 0.7 0.7 1</ambient>
-            <diffuse>0.7 0.7 0.7 1</diffuse>
-          </material>
-        </visual>
-      </link>
-    </model>
-
-    <!-- 走廊 - 柱子 2 -->
-    <model name="pillar_2">
-      <static>true</static>
-      <pose>1.5 0 0.5 0 0 0</pose>
-      <link name="link">
-        <collision name="collision">
-          <geometry>
-            <cylinder>
-              <radius>0.2</radius>
-              <length>1</length>
-            </cylinder>
-          </geometry>
-        </collision>
-        <visual name="visual">
-          <geometry>
-            <cylinder>
-              <radius>0.2</radius>
-              <length>1</length>
-            </cylinder>
-          </geometry>
-          <material>
-            <ambient>0.7 0.7 0.7 1</ambient>
-            <diffuse>0.7 0.7 0.7 1</diffuse>
-          </material>
-        </visual>
-      </link>
-    </model>
-
-    <!-- 房间 C - 柜子 -->
     <model name="cabinet_c">
       <static>true</static>
-      <pose>-4 3.5 0.6 0 0 0</pose>
+      <pose>-1.200 4.400 0.900 0 0 0.0000</pose>
       <link name="link">
         <collision name="collision">
           <geometry>
-            <box>
-              <size>1 0.5 1.2</size>
-            </box>
+            <box><size>1.400 0.450 1.800</size></box>
           </geometry>
         </collision>
         <visual name="visual">
           <geometry>
-            <box>
-              <size>1 0.5 1.2</size>
-            </box>
+            <box><size>1.400 0.450 1.800</size></box>
           </geometry>
           <material>
-            <ambient>0.7 0.5 0.3 1</ambient>
-            <diffuse>0.7 0.5 0.3 1</diffuse>
+            <ambient>0.55 0.58 0.62 1</ambient>
+            <diffuse>0.55 0.58 0.62 1</diffuse>
           </material>
         </visual>
       </link>
     </model>
-
-    <!-- 房间 D - 床 -->
+    <model name="rack_c">
+      <static>true</static>
+      <pose>1.300 4.400 0.750 0 0 0.0000</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box><size>1.600 0.450 1.500</size></box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box><size>1.600 0.450 1.500</size></box>
+          </geometry>
+          <material>
+            <ambient>0.55 0.58 0.62 1</ambient>
+            <diffuse>0.55 0.58 0.62 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+    <model name="crate_c1">
+      <static>true</static>
+      <pose>0.200 2.800 0.250 0 0 0.3000</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box><size>0.500 0.500 0.500</size></box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box><size>0.500 0.500 0.500</size></box>
+          </geometry>
+          <material>
+            <ambient>0.55 0.38 0.22 1</ambient>
+            <diffuse>0.55 0.38 0.22 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+    <model name="crate_c2">
+      <static>true</static>
+      <pose>1.100 2.600 0.250 0 0 -0.4000</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box><size>0.500 0.500 0.500</size></box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box><size>0.500 0.500 0.500</size></box>
+          </geometry>
+          <material>
+            <ambient>0.55 0.38 0.22 1</ambient>
+            <diffuse>0.55 0.38 0.22 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+    <model name="sofa_b">
+      <static>true</static>
+      <pose>4.600 3.400 0.400 0 0 0.0000</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box><size>1.800 0.850 0.800</size></box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box><size>1.800 0.850 0.800</size></box>
+          </geometry>
+          <material>
+            <ambient>0.25 0.35 0.60 1</ambient>
+            <diffuse>0.25 0.35 0.60 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+    <model name="table_b">
+      <static>true</static>
+      <pose>4.600 2.400 0.225 0 0 0.0000</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box><size>0.900 0.600 0.450</size></box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box><size>0.900 0.600 0.450</size></box>
+          </geometry>
+          <material>
+            <ambient>0.55 0.38 0.22 1</ambient>
+            <diffuse>0.55 0.38 0.22 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
     <model name="bed_d">
       <static>true</static>
-      <pose>4 3.5 0.3 0 0 0</pose>
+      <pose>-4.600 -3.800 0.275 0 0 0.0000</pose>
       <link name="link">
         <collision name="collision">
           <geometry>
-            <box>
-              <size>2 1.5 0.6</size>
-            </box>
+            <box><size>1.900 1.300 0.550</size></box>
           </geometry>
         </collision>
         <visual name="visual">
           <geometry>
-            <box>
-              <size>2 1.5 0.6</size>
-            </box>
+            <box><size>1.900 1.300 0.550</size></box>
           </geometry>
           <material>
-            <ambient>0.8 0.8 0.9 1</ambient>
-            <diffuse>0.8 0.8 0.9 1</diffuse>
+            <ambient>0.25 0.35 0.60 1</ambient>
+            <diffuse>0.25 0.35 0.60 1</diffuse>
           </material>
         </visual>
       </link>
     </model>
-
-    <!-- 动态障碍物 - 箱子 1 -->
+    <model name="desk_d">
+      <static>true</static>
+      <pose>-5.300 -1.600 0.375 0 0 0.0000</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry>
+            <box><size>1.000 0.500 0.750</size></box>
+          </geometry>
+        </collision>
+        <visual name="visual">
+          <geometry>
+            <box><size>1.000 0.500 0.750</size></box>
+          </geometry>
+          <material>
+            <ambient>0.55 0.38 0.22 1</ambient>
+            <diffuse>0.55 0.38 0.22 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+    <model name="pillar_1">
+      <static>true</static>
+      <pose>0.000 -2.000 0.500 0 0 0</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry><cylinder><radius>0.220</radius><length>1.000</length></cylinder></geometry>
+        </collision>
+        <visual name="visual">
+          <geometry><cylinder><radius>0.220</radius><length>1.000</length></cylinder></geometry>
+          <material>
+            <ambient>0.70 0.70 0.70 1</ambient>
+            <diffuse>0.70 0.70 0.70 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+    <model name="pillar_2">
+      <static>true</static>
+      <pose>2.600 -2.000 0.500 0 0 0</pose>
+      <link name="link">
+        <collision name="collision">
+          <geometry><cylinder><radius>0.220</radius><length>1.000</length></cylinder></geometry>
+        </collision>
+        <visual name="visual">
+          <geometry><cylinder><radius>0.220</radius><length>1.000</length></cylinder></geometry>
+          <material>
+            <ambient>0.70 0.70 0.70 1</ambient>
+            <diffuse>0.70 0.70 0.70 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
     <model name="box_1">
-      <pose>2 -3 0.25 0 0 0.3</pose>
+      <static>true</static>
+      <pose>3.200 -3.600 0.250 0 0 0.3000</pose>
       <link name="link">
         <collision name="collision">
           <geometry>
-            <box>
-              <size>0.5 0.5 0.5</size>
-            </box>
+            <box><size>0.500 0.500 0.500</size></box>
           </geometry>
         </collision>
         <visual name="visual">
           <geometry>
-            <box>
-              <size>0.5 0.5 0.5</size>
-            </box>
+            <box><size>0.500 0.500 0.500</size></box>
           </geometry>
           <material>
-            <ambient>0.8 0.6 0.2 1</ambient>
-            <diffuse>0.8 0.6 0.2 1</diffuse>
+            <ambient>0.55 0.38 0.22 1</ambient>
+            <diffuse>0.55 0.38 0.22 1</diffuse>
           </material>
         </visual>
-        <inertial>
-          <mass>2.0</mass>
-        </inertial>
       </link>
     </model>
-
-    <!-- 动态障碍物 - 箱子 2 -->
     <model name="box_2">
-      <pose>-2 3 0.25 0 0 -0.5</pose>
+      <static>true</static>
+      <pose>-1.200 -4.200 0.225 0 0 -0.5000</pose>
       <link name="link">
         <collision name="collision">
           <geometry>
-            <box>
-              <size>0.4 0.4 0.5</size>
-            </box>
+            <box><size>0.450 0.450 0.450</size></box>
           </geometry>
         </collision>
         <visual name="visual">
           <geometry>
-            <box>
-              <size>0.4 0.4 0.5</size>
-            </box>
+            <box><size>0.450 0.450 0.450</size></box>
           </geometry>
           <material>
-            <ambient>0.9 0.3 0.3 1</ambient>
-            <diffuse>0.9 0.3 0.3 1</diffuse>
+            <ambient>0.55 0.38 0.22 1</ambient>
+            <diffuse>0.55 0.38 0.22 1</diffuse>
           </material>
         </visual>
-        <inertial>
-          <mass>1.5</mass>
-        </inertial>
       </link>
     </model>
-
-    <!-- 动态障碍物 - 球 -->
-    <model name="ball_1">
-      <pose>0 3 0.15 0 0 0</pose>
+    <model name="charger_home">
+      <static>true</static>
+      <pose>0.000 -4.300 0.450 0 0 0</pose>
       <link name="link">
         <collision name="collision">
-          <geometry>
-            <sphere>
-              <radius>0.15</radius>
-            </sphere>
-          </geometry>
+          <geometry><cylinder><radius>0.160</radius><length>0.900</length></cylinder></geometry>
         </collision>
         <visual name="visual">
-          <geometry>
-            <sphere>
-              <radius>0.15</radius>
-            </sphere>
-          </geometry>
+          <geometry><cylinder><radius>0.160</radius><length>0.900</length></cylinder></geometry>
           <material>
-            <ambient>0.2 0.8 0.2 1</ambient>
-            <diffuse>0.2 0.8 0.2 1</diffuse>
-          </material>
-        </visual>
-        <inertial>
-          <mass>0.5</mass>
-        </inertial>
-      </link>
-    </model>
-
-    <!-- 标记点 - 目标点 A -->
-    <model name="target_a">
-      <static>true</static>
-      <pose>-3 -2 0.01 0 0 0</pose>
-      <link name="link">
-        <visual name="visual">
-          <geometry>
-            <cylinder>
-              <radius>0.3</radius>
-              <length>0.02</length>
-            </cylinder>
-          </geometry>
-          <material>
-            <ambient>0 1 0 1</ambient>
-            <diffuse>0 1 0 1</diffuse>
-          </material>
-        </visual>
-      </link>
-    </model>
-
-    <!-- 标记点 - 目标点 B -->
-    <model name="target_b">
-      <static>true</static>
-      <pose>3 2 0.01 0 0 0</pose>
-      <link name="link">
-        <visual name="visual">
-          <geometry>
-            <cylinder>
-              <radius>0.3</radius>
-              <length>0.02</length>
-            </cylinder>
-          </geometry>
-          <material>
-            <ambient>0 0 1 1</ambient>
-            <diffuse>0 0 1 1</diffuse>
-          </material>
-        </visual>
-      </link>
-    </model>
-
-    <!-- 标记点 - 目标点 C -->
-    <model name="target_c">
-      <static>true</static>
-      <pose>4 3.5 0.01 0 0 0</pose>
-      <link name="link">
-        <visual name="visual">
-          <geometry>
-            <cylinder>
-              <radius>0.3</radius>
-              <length>0.02</length>
-            </cylinder>
-          </geometry>
-          <material>
-            <ambient>1 0 0 1</ambient>
-            <diffuse>1 0 0 1</diffuse>
+            <ambient>0.25 0.35 0.60 1</ambient>
+            <diffuse>0.25 0.35 0.60 1</diffuse>
           </material>
         </visual>
       </link>

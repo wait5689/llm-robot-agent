@@ -220,10 +220,6 @@ roslaunch llm_robot_agent gazebo.launch        # 高级机器人 + 多房间
 roslaunch llm_robot_agent car.launch           # 基础小车 + 障碍物
 rosrun teleop_twist_keyboard teleop_twist_keyboard.py
 
-# 建图（阶段二前置，只需一次）
-rosrun gmapping slam_gmapping scan:=scan
-rosrun map_server map_saver -f $(rospack find llm_robot_agent)/maps/indoor
-
 # 阶段二：自主导航
 roslaunch llm_robot_agent navigation.launch
 
@@ -236,7 +232,93 @@ roslaunch llm_robot_agent full_system.launch \
 > 「Ubuntu 22.04 + ROS 1」是矛盾的组合，请按本说明使用 20.04。
 > 若要上 22.04，应整体迁移到 ROS 2 Humble + Nav2。
 
-### 3.5 从旧的 four_car_sim 迁移
+### 3.5 导航系统（阶段二）
+
+#### 3.5.1 地图
+
+`maps/indoor.yaml` 已随仓库提供，**开箱即可跑导航**。它有两种来源：
+
+| 方式 | 命令 | 用途 |
+|---|---|---|
+| 离线真值（已有） | `python3 tools/build_map.py --world worlds/complex_indoor.world --out maps/indoor` | 开发、回归、CI；秒级生成 |
+| SLAM 实建（推荐验收） | 见下方 gmapping 流程 | 答辩演示；地图带真实建图误差 |
+
+用 gmapping 重新建图（会覆盖现有地图）：
+
+```bash
+roslaunch llm_robot_agent gazebo.launch
+rosrun gmapping slam_gmapping scan:=scan
+rosrun teleop_twist_keyboard teleop_twist_keyboard.py   # 把每个房间走一遍
+rosrun map_server map_saver -f $(rospack find llm_robot_agent)/maps/indoor
+```
+
+> 离线地图是「上帝视角抄答案」，坐标与 world 完全一致；
+> SLAM 地图会有几厘米到十几厘米的累积误差，**建图后需用 RViz 微调
+> `config/locations.yaml`**，否则目标点可能贴在墙上。
+
+#### 3.5.2 一次跑完全部静态检查
+
+```bash
+python3 tools/accept_stage2.py
+```
+
+四项检查，任一失败即退出码非 0：
+
+1. **世界可导航性** —— 每个语义地点是否真的走得到
+2. **导航配置静态校验** —— launch / 参数 / 依赖引用是否自洽
+3. **地图一致性** —— `indoor.pgm` 尺寸与 origin 是否覆盖全部地点
+4. **A\* 路径可达性** —— 在膨胀栅格上真实求解从 home 到各房间的路径，并给出绕行系数
+
+实测输出：
+
+```
+[PASS] 世界可导航性       全部语义地点可从起点到达
+[PASS] 导航配置静态校验   launch / 参数 / 依赖自洽
+[PASS] 地图文件           283x243 @ 0.05m，origin [-7.08,-6.08]
+[PASS] A* 路径可达性
+       corridor  3.03 m (直线 2.82 m, 绕行 1.08x)
+       hall      3.57 m (直线 3.26 m, 绕行 1.10x)
+       room_a    8.69 m (直线 7.40 m, 绕行 1.18x)
+       room_b    7.03 m (直线 6.31 m, 绕行 1.11x)
+       room_c    6.08 m (直线 5.81 m, 绕行 1.05x)
+       room_d    5.08 m (直线 4.71 m, 绕行 1.08x)
+```
+
+绕行系数 1.05–1.18 说明路径确实是从门洞穿过去的，而不是被误判成直线可达。
+
+#### 3.5.3 世界布局
+
+`worlds/complex_indoor.world` 由 `tools/gen_world.py` 生成，**不要手工修改**：
+
+```
+        y=+5  ┌────────┬────────┬────────┐
+              │ room_a │ room_c │ room_b │   北区
+        y=0   ├──┬─────┴───┬────┴──┬─────┤
+              │  │  门洞×3  │       │     │   主分隔墙
+        y=0   ├──┴─────────┴───────┴─────┤
+              │   room_d      hall       │   南区
+        y=-5  └─────────────────────────┘
+```
+
+改布局 = 改 `gen_world.py` 顶部参数后重新生成，再用 `accept_stage2.py` 校验。
+
+> **历史坑**：上一版 world 的墙体全部连通、**没有任何门洞**，四个房间是
+> 四个封闭盒子。导航参数怎么调都不可能到达，现象是模型原地乱转、
+> move_base 报 ABORTED。这类问题在 Gazebo 里排查要开 RViz、看 costmap、
+> 翻日志，一轮十几分钟；而 `audit_world.py` 用纯几何 3 秒就能算出来。
+
+#### 3.5.4 工具清单
+
+| 工具 | 作用 |
+|---|---|
+| `tools/gen_world.py` | 按参数生成带门洞的室内世界 |
+| `tools/audit_world.py` | 栅格化 + BFS，判断每个地点是否可达；输出自由栅格用于选坐标 |
+| `tools/build_map.py` | 从 world 生成 ROS 地图（PGM + YAML） |
+| `tools/lint_launch.py` | 静态校验 launch / YAML / CMake 引用 |
+| `tools/accept_stage2.py` | 以上四者的总集成，阶段二验收入口 |
+
+
+### 3.6 从旧的 four_car_sim 迁移
 
 本包已合并原 `four_car_sim` 的全部有效资产，**不再依赖外部包**。
 若你的 WSL 里还有旧包，请按 `docs/MERGE_NOTES.md` 的步骤替换：
@@ -258,10 +340,25 @@ catkin_make && source devel/setup.bash
 | 阶段 | 验收动作 | 判定依据 | 状态 |
 |---|---|---|---|
 | 一、仿真环境 | `gazebo.launch` + 键盘遥控 | Gazebo 中机器人可移动 | 代码就绪，待实机验证 |
-| 二、自主导航 | `navigation.launch` + RViz 点目标 | 机器人绕障到达 | 代码就绪，待建图 |
+| 二、自主导航 | `navigation.launch` + RViz 点目标 | 机器人绕障到达 | 静态验收全通过（`accept_stage2.py`），待实机验证 |
 | 三、LLM Agent | `full_system.launch task:="..."` | 多地点任务自主完成 | 真实模型已验证（Mock 后端） |
 | 三、异常处理 | `--fault room_a:blocked` | 失败后自动重试成功 | 已验证（真实模型自主重试） |
 | 四、扩展 | `web_server.py` | 浏览器完成任务并看到轨迹 | 已验证（Mock） |
+
+### 阶段二修正记录
+
+导航系统本次做了以下实质性修正（此前存在多处必然导致失败的缺陷）：
+
+| # | 缺陷 | 后果 | 修正 |
+|---|---|---|---|
+| 1 | 世界中所有墙体连通，**没有门洞** | 四个房间是封闭盒子，任何目标都 ABORTED | 用 `gen_world.py` 重建成带门洞布局 |
+| 2 | `room_c` 坐标 (0, 5.0) 落在北墙体内 | 该目标必然失败 | 坐标改为 (0, 2.15)，并建立自动校验 |
+| 3 | `rviz/nav.rviz` 被引用但文件不存在 | rviz 启动即报错退出 | 补齐 RViz 配置 |
+| 4 | AMCL 用官方示例 launch | 雷达量程/坐标系不匹配，定位发散 | 改用包内 `amcl_params.yaml` |
+| 5 | `CMakeLists.txt` 引用不存在的 `nav_bridge.py` | `catkin_make` 直接失败 | 移除并补上 `initial_pose.py` |
+| 6 | `initial_pose.py` 只发 5 次就退出 | AMCL 未就绪时消息全部丢失 | 改为等就绪后持续发布 |
+| 7 | `maps/indoor.yaml` 缺失 | `navigation.launch` 无法启动 | 提供离线真值地图 + SLAM 建图说明 |
+
 
 ---
 
@@ -318,9 +415,18 @@ report_blocked → "错误码明确表示重复尝试不会改变结果，故未
 
 **当前阻塞项**
 
-1. `maps/indoor.yaml` 尚未生成 —— 需在 ROS 环境中先建图，否则 `navigation.launch` 会失败。
-2. `config/locations.yaml` 中的坐标是基于世界文件估算的，建图后需用 RViz 校准。
-3. 尚未在真实 Gazebo 中端到端跑通（当前验证止于 Mock 后端）。
+阶段二的静态验收已全部通过（`tools/accept_stage2.py`，四项 PASS），
+剩余阻塞项均属「需要 ROS 运行环境」的实机环节：
+
+| # | 阻塞项 | 影响 | 解除方式 |
+|---|--------|------|----------|
+| 1 | 未在 Gazebo 中端到端跑通 | 导航栈的动态行为（DWA 避障、恢复行为、AMCL 收敛）未经运行验证 | 在 Ubuntu 20.04 + Melodic/Noetic 中 `catkin_make` 后 `roslaunch llm_robot_agent navigation.launch`，RViz 手动给 3 个目标点 |
+| 2 | 地图为离线真值图，非 SLAM 实建 | `maps/indoor.pgm` 由 world 文件直接光栅化，不含建图误差与未知区域，定位过于理想 | 跑 `slam_gmapping` 建图后替换 `maps/`，再重跑 `accept_stage2.py` |
+| 3 | `locations.yaml` 未经 RViz 校准 | 坐标为世界真值，与实建地图可能有 10–20 cm 偏差；导航到达容差 0.20 m 可吸收部分误差 | 建图后在 RViz 中用 `Publish Point` 逐点核对 |
+
+三项的关键差别：第 1 项是**能否跑起来**，第 2、3 项是**跑得准不准**。
+当前 `locations.yaml` 的坐标是拿 `audit_world.py` 输出的自由栅格逐个挑的，
+保证落点不在障碍物膨胀区内，因此即便直接用于第 1 项验证也不会因目标点非法而失败。
 
 **安全提示（重要）**
 

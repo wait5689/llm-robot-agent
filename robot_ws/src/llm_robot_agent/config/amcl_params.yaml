@@ -1,0 +1,67 @@
+# =========================================================
+# AMCL 定位参数
+# ---------------------------------------------------------
+# 这是本项目最容易出问题的一环。要点：
+#
+# 1. laser_model_type 必须是 likelihood_field
+#    室内结构化环境（墙多为矩形、激光打墙产生的是"面"而非"点"），
+#    likelihood_field 比 beam 模型稳得多，重定位成功率显著更高。
+#
+# 2. laser_max_range 必须 <= 雷达实际量程（URDF 中为 10 m）
+#    设成比量程还大会让 720 条光束里出现大量"无效读数"，
+#    AMCL 会误判自己在墙外，表现为粒子云四处飘散。
+#
+# 3. tf_broadcast 必须为 true
+#    move_base 依赖 amcl 广播的 map->odom 变换。
+#    关掉它，全局代价地图就永远拿不到 map 坐标系，规划器直接不工作。
+#
+# 4. initial_pose 由 scripts/initial_pose.py 主动发布
+#    仿真里机器人生成位置已知，不必在 RViz 里手点。
+#    若换了起点，记得同步改 launch 里的 init_pose_* 参数。
+# =========================================================
+
+# ---- 坐标系 ----
+odom_frame_id: odom
+base_frame_id: base_link
+global_frame_id: map
+
+# ---- TF 与发布 ----
+tf_broadcast: true
+transform_tolerance: 1.0
+
+# ---- 里程计模型（差速轮） ----
+odom_model_type: diff
+odom_alpha1: 0.2
+odom_alpha2: 0.2
+odom_alpha3: 0.2
+odom_alpha4: 0.2
+odom_alpha5: 0.1
+
+# ---- 激光模型 ----
+laser_model_type: likelihood_field
+laser_max_range: 9.0
+laser_min_range: 0.15
+laser_likelihood_max_dist: 2.0
+
+# ---- 粒子滤波 ----
+min_particles: 500
+max_particles: 3000
+kld_err: 0.02
+kld_z: 0.99
+
+# 更新阈值：只有机器人移动/转动超过门限才更新，省 CPU
+update_min_d: 0.10
+update_min_a: 0.15
+resample_interval: 1
+
+# 恢复行为：全局重定位（"机器人丢失"时使用）
+recovery_alpha_slow: 0.001
+recovery_alpha_fast: 0.1
+
+# 初始位姿不确定性：给一个较大的协方差，
+# 让 AMCL 在收到 initial_pose 后能自行收敛，而不是死锁在初值上
+initial_pose:
+  x: 0.0
+  y: 0.0
+  z: 0.0
+  yaw: 0.0

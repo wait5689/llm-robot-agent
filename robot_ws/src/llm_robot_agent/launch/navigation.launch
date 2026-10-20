@@ -1,49 +1,106 @@
 <?xml version="1.0"?>
 <!--
-  阶段二验收：仿真 + 地图服务 + AMCL 定位 + move_base 导航
-  验证目标：在 RViz 里用 "2D Nav Goal" 点一个目标，机器人自主规划并到达
+  ============================================================
+  阶段二：自主导航（地图 + AMCL 定位 + move_base 避障导航）
+  ============================================================
 
-  前置：先建好地图
-    roslaunch llm_robot_agent gazebo.launch
-    rosrun gmapping slam_gmapping scan:=scan
-    rosrun map_server map_saver -f $(rospack find llm_robot_agent)/maps/indoor
+  用法：
+    roslaunch llm_robot_agent navigation.launch
+
+  验收：
+    1. RViz 中 Map 显示室内地图，LaserScan 与地图吻合
+    2. ParticleCloud 收敛成一簇（不收敛就是定位失败）
+    3. 用工具栏 "2D Nav Goal" 点任意房间，机器人绕障到达
+
+  前置条件（必须满足，否则一定失败）：
+    maps/indoor.yaml 存在。生成方式见 README「建图」一节。
+
+  ============================================================
+  与旧版相比修的 5 个问题：
+
+  1. 旧版用 include 引入 amcl 包自带的示例 launch 文件，
+     那是官方示例，参数与本项目雷达量程、坐标系都不匹配，
+     且不同发行版路径可能不同。改为加载包内 config/amcl_params.yaml。
+
+  2. 旧版引用 rviz/nav.rviz，但该文件并不存在，rviz 会直接报错退出。
+     本次补齐。
+
+  3. 旧版 arg 名为 rviz，与 rviz 节点同名容易混淆，
+     改用 use_rviz 命名。
+
+  4. 旧版 initial_pose 节点在 map_server 就绪前就开始发布，
+     消息会全部丢失。现在改为先等 /map 与 AMCL 订阅就绪。
+
+  5. 旧版未显式声明 use_sim_time，rviz 需要继承该设置，
+     否则 TF 时间戳错乱。
+  ============================================================
 -->
 <launch>
+  <!-- ============ 参数 ============ -->
   <arg name="map_file" default="$(find llm_robot_agent)/maps/indoor.yaml"/>
-  <arg name="x" default="0.0"/>
-  <arg name="y" default="-3.0"/>
-  <arg name="z" default="0.15"/>
-  <arg name="rviz" default="true"/>
-  <arg name="init_pose_x" default="0.0"/>
-  <arg name="init_pose_y" default="-3.0"/>
-  <arg name="init_pose_yaw" default="0.0"/>
+  <arg name="use_rviz" default="true"/>
+  <arg name="gui" default="true"/>
 
+  <!-- 机器人生成位姿：必须与 config/locations.yaml 的 home 一致 -->
+  <arg name="x" default="0.8"/>
+  <arg name="y" default="-3.6"/>
+  <arg name="z" default="0.15"/>
+  <arg name="yaw" default="1.5708"/>
+
+  <!-- 初始位姿（喂给 AMCL），一般与生成位姿相同 -->
+  <arg name="init_pose_x" default="0.8"/>
+  <arg name="init_pose_y" default="-3.6"/>
+  <arg name="init_pose_yaw" default="1.5708"/>
+
+  <param name="/use_sim_time" value="true"/>
+
+  <!-- ============ 1. 仿真世界 + 机器人 ============ -->
   <include file="$(find llm_robot_agent)/launch/gazebo.launch">
     <arg name="x" value="$(arg x)"/>
     <arg name="y" value="$(arg y)"/>
     <arg name="z" value="$(arg z)"/>
+    <arg name="gui" value="$(arg gui)"/>
   </include>
 
-  <!-- 地图 -->
-  <node name="map_server" pkg="map_server" type="map_server" args="$(arg map_file)" output="screen"/>
+  <!-- ============ 2. 地图服务 ============ -->
+  <node name="map_server" pkg="map_server" type="map_server"
+        args="$(arg map_file)" output="screen" respawn="false"/>
 
-  <!-- AMCL 定位 -->
-  <include file="$(find amcl)/examples/amcl_diff.launch"/>
+  <!-- ============ 3. AMCL 定位 ============ -->
+  <node name="amcl" pkg="amcl" type="amcl" output="screen" respawn="false">
+    <rosparam file="$(find llm_robot_agent)/config/amcl_params.yaml" command="load"/>
+    <!-- 雷达话题：URDF 中 gazebo_ros_laser 发布到 /scan -->
+    <remap from="scan" to="scan"/>
+    <!-- 初始位姿 -->
+    <param name="initial_pose_x" value="$(arg init_pose_x)"/>
+    <param name="initial_pose_y" value="$(arg init_pose_y)"/>
+    <param name="initial_pose_a" value="$(arg init_pose_yaw)"/>
+  </node>
 
-  <!-- 初始位姿：仿真中我们已知机器人生成位置，直接喂给 AMCL 避免手动点 -->
+  <!-- 主动发布初始位姿：等 /map 与 AMCL 就绪后再发 -->
   <node name="initial_pose_publisher" pkg="llm_robot_agent" type="initial_pose.py"
-        args="$(arg init_pose_x) $(arg init_pose_y) $(arg init_pose_yaw)" output="screen"/>
+        args="$(arg init_pose_x) $(arg init_pose_y) $(arg init_pose_yaw)"
+        output="screen"/>
 
-  <!-- move_base：使用包内参数 -->
-  <node name="move_base" pkg="move_base" type="move_base" respawn="false" output="screen">
-    <rosparam file="$(find llm_robot_agent)/config/costmap_common_params.yaml" command="load" ns="global_costmap"/>
-    <rosparam file="$(find llm_robot_agent)/config/costmap_common_params.yaml" command="load" ns="local_costmap"/>
+  <!-- ============ 4. move_base ============ -->
+  <node name="move_base" pkg="move_base" type="move_base"
+        respawn="false" output="screen">
+    <!-- 公共参数分别加载到两个 costmap 命名空间 -->
+    <rosparam file="$(find llm_robot_agent)/config/costmap_common_params.yaml"
+              command="load" ns="global_costmap"/>
+    <rosparam file="$(find llm_robot_agent)/config/costmap_common_params.yaml"
+              command="load" ns="local_costmap"/>
+    <!-- 各 costmap 的独立参数，文件内含 global_costmap: / local_costmap: 顶层键 -->
     <rosparam file="$(find llm_robot_agent)/config/global_costmap_params.yaml" command="load"/>
     <rosparam file="$(find llm_robot_agent)/config/local_costmap_params.yaml" command="load"/>
     <rosparam file="$(find llm_robot_agent)/config/base_local_planner_params.yaml" command="load"/>
     <rosparam file="$(find llm_robot_agent)/config/move_base_params.yaml" command="load"/>
+
+    <remap from="cmd_vel" to="cmd_vel"/>
+    <remap from="odom" to="odom"/>
   </node>
 
-  <node if="$(arg rviz)" name="rviz" pkg="rviz" type="rviz"
+  <!-- ============ 5. RViz ============ -->
+  <node if="$(arg use_rviz)" name="rviz" pkg="rviz" type="rviz"
         args="-d $(find llm_robot_agent)/rviz/nav.rviz" output="screen"/>
 </launch>

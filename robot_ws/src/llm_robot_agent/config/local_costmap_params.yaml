@@ -1,14 +1,37 @@
+# =========================================================
+# 局部代价地图
+# ---------------------------------------------------------
+# 这层跟随机器人滚动（rolling_window），负责实时避障。
+#
+# 坐标系必须是 odom 而非 map：
+#    odom 连续、无跳变，适合做速度控制
+#    map 会因 AMCL 重定位跳变，用它做局部规划会导致机器人抽搐
+# 这也是全局与局部用不同坐标系的标准做法（两级 costmap 靠 TF 对齐）。
+#
+# 【命名空间说明】本文件加载到 move_base 节点下，参数落在
+#     /move_base/local_costmap/*
+# 因此需要 `local_costmap:` 顶层键。
+# =========================================================
+
 local_costmap:
   global_frame: odom
   robot_base_frame: base_link
-  update_frequency: 5.0
-  publish_frequency: 2.0
+
+  update_frequency: 10.0
+  publish_frequency: 5.0
+
   static_map: false
   rolling_window: true
-  width: 4.0
-  height: 4.0
+  width: 5.0
+  height: 5.0
   resolution: 0.05
-  transform_tolerance: 1.0
+
+  transform_tolerance: 0.5
+
+  # 局部图不加载静态地图（否则会把已建图的墙当成新障碍重复膨胀）
+  static_layer:
+    enabled: false
+
   plugins:
     - {name: obstacle_layer, type: "costmap_2d::ObstacleLayer"}
     - {name: inflation_layer, type: "costmap_2d::InflationLayer"}

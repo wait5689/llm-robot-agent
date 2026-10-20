@@ -5,51 +5,68 @@
 # LLM 只会输出语义地点名（例如 "room_a"），坐标映射在这里完成，
 # 避免让大模型去编造精确数字坐标。
 #
+# 【重要】坐标必须与新世界布局一致。
+# 世界文件由 tools/gen_world.py 生成，改动布局后必须同步本文件，
+# 并用下面这条命令校验（退出码 0 才算通过）：
+#
+#   python3 tools/audit_world.py \
+#       --world worlds/complex_indoor.world \
+#       --locations config/locations.yaml \
+#       --start 0.8,-3.0
+#
+# 上一版 bug 记录：room_c 曾被写成 (0, 5.0)，而 y=5.0 正是北墙所在位置，
+# 目标点落在墙体内，move_base 必然 abort。改坐标请务必跑上面的校验。
+#
 # 坐标单位为米，yaw 为弧度（0 = 朝向 +X 轴）。
-# 初始值对应 worlds/complex_indoor.world 中的 target_a/b/c 标记，
-# 建图后请用 RViz 的 "2D Pose Estimate" 校准后更新本文件。
 # =========================================================
 
 frame_id: map
 
-# 机器人每次任务开始时的默认点位
+# 机器人每次任务开始时的默认点位（充电桩旁，正对场地中心）
 home:
-  position: [0.0, -3.0]
-  yaw: 0.0
-  description: "起点 / 充电桩"
+  position: [0.80, -3.60]
+  yaw: 1.5708
+  description: "起点 / 充电桩，南区中央"
 
 locations:
+  # ---- 北区：三个房间 ----
   room_a:
-    position: [-3.5, 2.5]
-    yaw: 1.57
-    description: "房间 A，西侧，有书桌与椅子"
-
-  room_b:
-    position: [3.5, 2.5]
-    yaw: -1.57
-    description: "房间 B，东侧，有书架与沙发"
+    position: [-4.20, 1.85]
+    yaw: 0.0
+    description: "房间 A，西北角，有书桌与书架"
 
   room_c:
-    position: [0.0, 5.0]
-    yaw: 3.14
-    description: "房间 C，北侧，有柜子"
+    position: [0.00, 2.15]
+    yaw: 1.5708
+    description: "房间 C，正北，有储物柜与货架"
 
+  room_b:
+    position: [4.15, 1.75]
+    yaw: 3.1416
+    description: "房间 B，东北角，有沙发与茶几"
+
+  # ---- 南区：活动区与走廊 ----
   room_d:
-    position: [-3.5, -2.5]
+    position: [-3.70, -2.20]
     yaw: 0.0
-    description: "房间 D，西南角，有床"
+    description: "房间 D，西南角，有床与书桌"
 
   corridor:
-    position: [0.0, 0.0]
+    position: [0.00, -0.90]
     yaw: 0.0
-    description: "中央走廊，连接各房间"
+    description: "中央走廊（主分隔墙南侧）"
+
+  hall:
+    position: [3.00, -1.20]
+    yaw: 3.1416
+    description: "南区大厅，柱子之间"
 
 # 别名表：允许用户用中文/口语化说法指代地点
 aliases:
   a: room_a
   房间a: room_a
-  A房间: room_a
   房间A: room_a
+  A房间: room_a
   b: room_b
   房间b: room_b
   房间B: room_b
@@ -62,4 +79,6 @@ aliases:
   起点: home
   出发点: home
   大本营: home
+  充电桩: home
   走廊: corridor
+  大厅: hall

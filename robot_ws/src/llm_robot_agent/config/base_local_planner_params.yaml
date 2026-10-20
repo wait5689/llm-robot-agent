@@ -1,20 +1,44 @@
-# DWA 局部规划器：负责避障与速度平滑
+# =========================================================
+# DWA 局部规划器（base_local_planner/TrajectoryPlannerROS）
+# ---------------------------------------------------------
+# 参数依据 urdf/advanced_robot.urdf 中的差速驱动设定：
+#   wheelSeparation 0.40 m、wheelDiameter 0.16 m、wheelTorque 30
+# 室内速度取保守值：0.30 m/s 已足够，撞墙后果更轻。
+# =========================================================
+
 TrajectoryPlannerROS:
-  max_vel_x: 0.35
+  # 线速度
+  max_vel_x: 0.30
   min_vel_x: 0.0
   max_vel_theta: 1.0
-  min_in_place_vel_theta: 0.4
-  acc_lim_x: 1.0
-  acc_lim_theta: 2.0
+  min_in_place_vel_theta: 0.35
 
+  # 加速度限制：过大容易在窄门洞处冲过头
+  acc_lim_x: 0.8
+  acc_lim_theta: 1.5
+
+  # 到达判定。必须与 config/agent.yaml 的 navigation.goal_tolerance 协调：
+  # agent 侧 0.30 m，这里取 0.20 m 更严格，
+  # 保证 move_base 报 SUCCEEDED 时 agent 的到达判定也一定成立。
   xy_goal_tolerance: 0.20
-  yaw_goal_tolerance: 0.15
+  yaw_goal_tolerance: 0.20
   latch_xy_goal_tolerance: false
 
+  # 轨迹采样
   sim_time: 1.7
+  sim_granularity: 0.025
   vx_samples: 20
   vtheta_samples: 40
   controller_frequency: 15.0
 
+  # 评分权重：提高 path/heading 权重让走道更居中，减少贴墙
+  path_distance_bias: 32.0
+  goal_distance_bias: 24.0
+  occdist_scale: 0.02
+
+  # 差速机器人
   holonomic_robot: false
   meter_scoring: true
+
+  # 震荡抑制：来回摆动超过阈值就交给 move_base 的恢复行为
+  oscillation_reset_dist: 0.10

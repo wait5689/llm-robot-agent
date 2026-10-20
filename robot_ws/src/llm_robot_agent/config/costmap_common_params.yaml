@@ -1,9 +1,20 @@
-# 代价地图公共参数（local 与 global 共享）
-# 机器人几何：需与 urdf/advanced_robot.urdf 中 base_link 尺寸一致
-footprint: [[-0.25, -0.20], [-0.25, 0.20], [0.25, 0.20], [0.25, -0.20]]
+# =========================================================
+# 代价地图公共参数
+# ---------------------------------------------------------
+# 本文件被 launch 分别加载到 global_costmap/ 与 local_costmap/ 两个命名空间下，
+# 因此这里**不要**写 `global_costmap:` / `local_costmap:` 顶层键，
+# 否则参数会变成 /move_base/global_costmap/global_costmap/xxx 而永远不生效。
+#
+# 机器人几何以 urdf/advanced_robot.urdf 为准：
+#   base_link 尺寸 0.5 × 0.35 m —— footprint 按此再加 2 cm 安全余量
+# =========================================================
 
-inflation_radius: 0.45
-cost_scaling_factor: 3.0
+footprint: [[-0.27, -0.20], [-0.27, 0.20], [0.27, 0.20], [0.27, -0.20]]
+
+# 膨胀半径必须 > 机器人内切半径 + 余量。
+# 设得过大会把门洞封死：本项目门宽 1.10 m，膨胀 0.42 m 后净空仍有 0.26 m。
+inflation_radius: 0.42
+cost_scaling_factor: 4.0
 
 obstacle_layer:
   enabled: true
@@ -17,9 +28,10 @@ obstacle_layer:
     topic: scan
     marking: true
     clearing: true
-    max_obstacle_height: 2.0
+    max_obstacle_height: 1.2
     min_obstacle_height: 0.0
 
+# 静态层：global 用 true；local 在 local_costmap_params.yaml 里单独覆盖为 false
 static_layer:
   enabled: true
 

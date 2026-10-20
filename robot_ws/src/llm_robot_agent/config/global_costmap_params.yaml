@@ -1,11 +1,35 @@
+# =========================================================
+# 全局代价地图
+# ---------------------------------------------------------
+# 【命名空间说明】本文件通过
+#     <rosparam file="..." command="load"/>
+# 加载到 move_base 节点下，因此参数实际落在
+#     /move_base/global_costmap/*
+# 需要 `global_costmap:` 顶层键，不能省略。
+#
+# （注意与 costmap_common_params.yaml 的区别：那个文件带 ns="global_costmap"
+#   加载，所以文件内部**不能**再有 global_costmap: 顶层键，否则会变成
+#   /move_base/global_costmap/global_costmap/*，参数静默失效。）
+# =========================================================
+
 global_costmap:
   global_frame: map
   robot_base_frame: base_link
-  update_frequency: 1.0
-  publish_frequency: 0.5
+
+  update_frequency: 2.0
+  publish_frequency: 1.0
+
+  # 用静态地图（建图产物 maps/indoor.yaml）
   static_map: true
   rolling_window: false
+  resolution: 0.05
+
+  # AMCL 输出有抖动，容差取 1.0 s 避免 TF 查询偶发超时导致规划器报错
   transform_tolerance: 1.0
+
+  # 未知区域（地图外）视为障碍，防止路径被画到地图边界之外
+  track_unknown_space: true
+
   plugins:
     - {name: static_layer, type: "costmap_2d::StaticLayer"}
     - {name: obstacle_layer, type: "costmap_2d::ObstacleLayer"}

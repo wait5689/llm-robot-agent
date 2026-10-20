@@ -21,17 +21,28 @@
   <depend>sensor_msgs</depend>
   <depend>tf</depend>
   <depend>actionlib</depend>
+  <depend>actionlib_msgs</depend>
   <depend>move_base_msgs</depend>
-  <depend>rospy_message_converter</depend>
 
   <!-- Simulation -->
   <exec_depend>gazebo_ros</exec_depend>
   <exec_depend>robot_state_publisher</exec_depend>
   <exec_depend>joint_state_publisher</exec_depend>
+
+  <!-- 导航栈运行时依赖 -->
   <exec_depend>amcl</exec_depend>
   <exec_depend>map_server</exec_depend>
   <exec_depend>move_base</exec_depend>
+  <exec_depend>base_local_planner</exec_depend>
+  <exec_depend>dwa_local_planner</exec_depend>
+  <exec_depend>clear_costmap_recovery</exec_depend>
+  <exec_depend>rotate_recovery</exec_depend>
   <exec_depend>rviz</exec_depend>
+
+  <!-- 建图工具（阶段二前置） -->
+  <exec_depend>gmapping</exec_depend>
+  <exec_depend>slam_gmapping</exec_depend>
+  <exec_depend>teleop_twist_keyboard</exec_depend>
 
   <export>
   </export>
