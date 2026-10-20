@@ -420,7 +420,7 @@ report_blocked → "错误码明确表示重复尝试不会改变结果，故未
 
 | # | 阻塞项 | 影响 | 解除方式 |
 |---|--------|------|----------|
-| 1 | 未在 Gazebo 中端到端跑通 | 导航栈的动态行为（DWA 避障、恢复行为、AMCL 收敛）未经运行验证 | 在 Ubuntu 20.04 + Melodic/Noetic 中 `catkin_make` 后 `roslaunch llm_robot_agent navigation.launch`，RViz 手动给 3 个目标点 |
+| 1 | 未在 Gazebo 中端到端跑通 | 导航栈的动态行为（DWA 避障、恢复行为、AMCL 收敛）未经运行验证 | 在 Ubuntu 20.04（Noetic）中 `catkin_make` 后 `roslaunch llm_robot_agent navigation.launch`，RViz 手动给 3 个目标点 |
 | 2 | 地图为离线真值图，非 SLAM 实建 | `maps/indoor.pgm` 由 world 文件直接光栅化，不含建图误差与未知区域，定位过于理想 | 跑 `slam_gmapping` 建图后替换 `maps/`，再重跑 `accept_stage2.py` |
 | 3 | `locations.yaml` 未经 RViz 校准 | 坐标为世界真值，与实建地图可能有 10–20 cm 偏差；导航到达容差 0.20 m 可吸收部分误差 | 建图后在 RViz 中用 `Publish Point` 逐点核对 |
 
