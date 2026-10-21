@@ -1,0 +1,45 @@
+# =========================================================
+# 换行符统一策略
+# ---------------------------------------------------------
+# 背景：本项目在 Windows 上编辑，在 WSL (Ubuntu 20.04) 里运行 ROS。
+# Windows 的 core.autocrlf=true 会让 git 检出时把 LF 换成 CRLF。
+# 这对 ROS 包是致命的：
+#   - *.sh  带 CRLF 在 bash 里会报 `\r: command not found`
+#   - *.py  带 CRLF 一般能跑，但 shebang 行会失效（./x.py 报 bad interpreter）
+#   - launch/*.xml、*.urdf 里的换行无影响，但保持一致更好排查
+# 所以这里显式规定：ROS 包内一律 LF。
+# =========================================================
+
+# 默认：仓库内容按 LF 存储
+* text=auto eol=lf
+
+# 源码与配置：强制 LF
+*.py      text eol=lf
+*.sh      text eol=lf
+*.bash    text eol=lf
+*.yaml    text eol=lf
+*.yml     text eol=lf
+*.xml     text eol=lf
+*.urdf    text eol=lf
+*.xacro   text eol=lf
+*.launch  text eol=lf
+*.world   text eol=lf
+*.md      text eol=lf
+*.txt     text eol=lf
+*.rviz    text eol=lf
+*.cfg     text eol=lf
+*.json    text eol=lf
+*.html    text eol=lf
+*.css     text eol=lf
+*.js      text eol=lf
+
+# 二进制：不做任何转换
+*.pgm     binary
+*.png     binary
+*.jpg     binary
+*.jpeg    binary
+*.gif     binary
+*.pdf     binary
+*.zip     binary
+*.gz      binary
+*.bag     binary

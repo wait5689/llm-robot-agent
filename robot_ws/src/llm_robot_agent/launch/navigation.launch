@@ -42,16 +42,16 @@
   <arg name="gui" default="true"/>
 
   <!-- 机器人生成位姿：必须与 config/locations.yaml 的 home 一致。
-       充电桩本体在 (0.80,-3.60) r=0.30，机器人不能生成在桩体内，
-       故选 (0.00,-3.00)：障碍间隙 0.70m，且在起点连通域内。 -->
+       home 点位于南区中央空地 (0.00,-3.40)，四面净空 >1.5m。
+       充电桩本体已移到西南角 (-4.80,-4.30)，不再与起点冲突。 -->
   <arg name="x" default="0.0"/>
-  <arg name="y" default="-3.0"/>
-  <arg name="z" default="0.15"/>
+  <arg name="y" default="-3.4"/>
+  <arg name="z" default="0.05"/>
   <arg name="yaw" default="1.5708"/>
 
   <!-- 初始位姿（喂给 AMCL），必须与生成位姿相同 -->
   <arg name="init_pose_x" default="0.0"/>
-  <arg name="init_pose_y" default="-3.0"/>
+  <arg name="init_pose_y" default="-3.4"/>
   <arg name="init_pose_yaw" default="1.5708"/>
 
   <param name="/use_sim_time" value="true"/>
@@ -61,6 +61,9 @@
     <arg name="x" value="$(arg x)"/>
     <arg name="y" value="$(arg y)"/>
     <arg name="z" value="$(arg z)"/>
+    <!-- ★ yaw 必须一起传下去。旧版这里漏了，
+         导致机器人生成时的朝向与 AMCL 初值不一致（差 90°）。 -->
+    <arg name="yaw" value="$(arg yaw)"/>
     <arg name="gui" value="$(arg gui)"/>
   </include>
 
@@ -79,10 +82,24 @@
     <param name="initial_pose_a" value="$(arg init_pose_yaw)"/>
   </node>
 
-  <!-- 主动发布初始位姿：等 /map 与 AMCL 就绪后再发 -->
-  <node name="initial_pose_publisher" pkg="llm_robot_agent" type="initial_pose.py"
-        args="$(arg init_pose_x) $(arg init_pose_y) $(arg init_pose_yaw)"
-        output="screen"/>
+  <!--
+    初始位姿不再依赖外部节点。
+    config/amcl_params.yaml 里已设 set_initial_pose: true，
+    AMCL 启动时会直接采用 initial_pose_x/y/a 三个参数。
+
+    旧方案是让 initial_pose.py 在 30 秒内以 2Hz 反复发 /initialpose，
+    问题在于：一旦 ROS master 上 AMCL 节点名尚未出现，
+    或 launch 时序稍有偏差（比如同一台机器上同时跑多个 launch），
+    这个一次性节点就发完了事，AMCL 永远停在「粒子云撒满全图」状态。
+    而 AMCL 并不会因此报错，只是不再修正定位 ——
+    现象最难查：导航看起来成功了，实际位置差好几米。
+
+    下面这行保留但默认不启用，需要手工重定位时可用
+    （例如换了起点又想从 RViz 点 "2D Pose Estimate" 的替代方案）：
+  -->
+  <!-- <node name="initial_pose_publisher" pkg="llm_robot_agent" type="initial_pose.py"
+             args="$(arg init_pose_x) $(arg init_pose_y) $(arg init_pose_yaw)"
+             output="screen"/> -->
 
   <!-- ============ 4. move_base ============ -->
   <node name="move_base" pkg="move_base" type="move_base"
@@ -95,7 +112,19 @@
     <!-- 各 costmap 的独立参数，文件内含 global_costmap: / local_costmap: 顶层键 -->
     <rosparam file="$(find llm_robot_agent)/config/global_costmap_params.yaml" command="load"/>
     <rosparam file="$(find llm_robot_agent)/config/local_costmap_params.yaml" command="load"/>
-    <rosparam file="$(find llm_robot_agent)/config/base_local_planner_params.yaml" command="load"/>
+
+    <!--
+      局部规划器参数。
+      当前用 DWAPlannerROS（文件内是 DWAPlannerROS: 顶层键，
+      由 move_base_params.yaml 的 base_local_planner 选中）。
+
+      旧的 base_local_planner_params.yaml 保留在 config/ 下作对照，
+      不再加载 —— 它的 TrajectoryPlannerROS 在「机器人背对目标」时
+      会持续输出零速而死锁（详见 move_base_params.yaml 的说明）。
+      如需回退，把下面这行换成 base_local_planner_params.yaml，
+      并同步改 move_base_params.yaml 的 base_local_planner。
+    -->
+    <rosparam file="$(find llm_robot_agent)/config/dwa_local_planner_params.yaml" command="load"/>
     <rosparam file="$(find llm_robot_agent)/config/move_base_params.yaml" command="load"/>
 
     <remap from="cmd_vel" to="cmd_vel"/>

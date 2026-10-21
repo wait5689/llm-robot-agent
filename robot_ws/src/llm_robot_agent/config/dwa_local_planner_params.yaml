@@ -1,0 +1,122 @@
+# =========================================================
+# 局部规划器参数（DWAPlannerROS）
+# ---------------------------------------------------------
+# 【为什么从 TrajectoryPlannerROS 换成 DWAPlannerROS】
+#
+# 本项目最初用 base_local_planner/TrajectoryPlannerROS（ROS1 旧版）。
+# 它在这张 12x10m 多房间地图上有一个稳定复现的死锁：
+#
+#   机器人到达 room_a 后（朝向 +Y，背对回程方向），
+#   下发 home 目标 → 全局规划成功 → DWA 每周期输出 cmd_vel，
+#   但线速度与角速度**恒为 0**，目标永不结束（state 一直 ACTIVE），
+#   60 秒内没有任何 WARN/ERROR，最后只能靠超时发现。
+#
+#   实测对照（同一位置，只改朝向）：
+#     朝向 +Y（背对目标）→ 死锁，恒零速
+#     先原地转到朝西，再下发同一目标 → 正常，7.3m 到达
+#
+#   根因是 TrajectoryPlannerROS 在前向采样窗口内找不到
+#   「掉头 180 度」的可行轨迹时，会退化为输出零速而不是触发恢复行为。
+#
+# DWAPlannerROS 在同一场景下会主动执行原地旋转（oscillation 检测
+# 与 rotate-to-heading 逻辑更完整），并且支持更细的速度空间采样。
+# 该插件在本机已安装（/opt/ros/noetic/lib/libdwa_local_planner.so）。
+#
+# 【单位】全部为 SI 单位（m, m/s, rad, rad/s）
+# =========================================================
+
+DWAPlannerROS:
+  # ---- 坐标系 ----
+  # 必须用 odom：连续无跳变，适合速度控制。
+  # 用 map 会因 AMCL 重定位跳变导致机器人抽搐。
+  global_frame: odom
+  odom_topic: odom
+  robot_base_frame: base_footprint
+
+  # ---- 速度限制 ----
+  # max_vel_x 0.30 是刻意压低的值：
+  #   场地里有 1.9m 门洞与大量贴墙家具，
+  #   速度超过 0.35 后 DWA 的 1.7s 前瞻覆盖距离拉长，
+  #   在门口容易来不及修正，实测会撞门框。
+  max_vel_x: 0.30
+  min_vel_x: 0.0          # 禁止倒车：差速轮倒车时万向球阻力方向反转，易打滑
+
+  max_vel_theta: 1.0
+  min_vel_theta: 0.20     # 低于此角速度电机基本转不动，只会抖
+
+  # 最低原地旋转角速度。太小会导致「想转但转不动」的僵持。
+  min_in_place_vel_theta: 0.35
+
+  # ---- 加速度限制 ----
+  # 实测（Gazebo）：从静止加速到 0.30m/s 约需 0.4s。
+  # 这里给 0.8 留了余量，太快会让轮子打滑、里程计失真。
+  acc_lim_x: 0.8
+  acc_lim_y: 0.0          # 差速机器人不能横移
+  acc_lim_theta: 1.5
+
+  # ---- 速度空间采样 ----
+  # 采样数决定每周期评估多少条轨迹。
+  # 20 x 40 = 800 条，在控制频率 15Hz 下开销可接受（实测 CPU < 15%）。
+  vx_samples: 20
+  vth_samples: 40
+
+  # ---- 轨迹评估 ----
+  # sim_time 1.7s：0.30m/s 下前瞻 0.51m，
+  # 刚好够在 1.9m 门洞前完成一次修正。
+  # 试过 2.0s，前瞻变长后 DWA 更倾向「减速绕行」而不是「直接穿过」，
+  # 在门口犹豫不决反而更容易失败。
+  sim_time: 1.7
+
+  # 路径跟随权重，高于目标吸引权重：优先贴着全局路径走，
+  # 否则在房间里会被目标点直接吸引、撞向家具。
+  path_distance_bias: 32.0
+  goal_distance_bias: 24.0
+
+  # 障碍物代价权重必须很小。
+  # 它是「离障碍多近就扣分」的权重；设大（试过 0.05）之后，
+  # 在 1.9m 门洞里两侧膨胀层同时产生代价，
+  # DWA 认为所有轨迹都危险，于是原地不动等恢复行为。
+  occdist_scale: 0.02
+
+  # 前向点距离：把评估点放在机器人前方 0.1m，
+  # 而不是车体中心，能更早发现正前方的障碍。
+  forward_point_distance: 0.1
+
+  # ---- 到达判定 ----
+  # xy_goal_tolerance 0.20：房间内空间有限，取 0.15 会导致
+  # 频繁「差一点到不了 → 反复微调」的抖动。
+  xy_goal_tolerance: 0.20
+  yaw_goal_tolerance: 0.20
+
+  # ★ 必须为 false。
+  # 设 true 时，一旦进入平移容差就锁定平移、只允许转 yaw；
+  # 若此时 yaw 也已满足，规划器既不走也不转，每周期输出零速，
+  # move_base 认为机器人还在努力，永不判失败 —— 同样的死锁症状。
+  latch_xy_goal_tolerance: false
+
+  # 判定「已停稳」的速度阈值
+  trans_stopped_velocity: 0.05
+  rot_stopped_velocity: 0.05
+
+  # ---- 其他 ----
+  # 提前结束轨迹评估：某条轨迹代价明显优于当前最优时不再继续采样，
+  # 降低 CPU 占用；对结果质量影响很小。
+  short_circuit_trajectory_evaluation: true
+
+  # pruning：离开起点超过 prune_plan 距离后裁掉已走过的路径点，
+  # 避免「倒退着追一条长路径」。
+  prune_plan: true
+
+  # 速度缩放：机器人距离障碍很近时按比例降速。
+  # scaling_speed 0.25 / max_scaling_factor 0.2 表示
+  # 在 0.25m/s 以下时最慢可降到 20% 速度。
+  scaling_speed: 0.25
+  max_scaling_factor: 0.2
+
+  # 发布可视化轨迹（rviz 里能看到候选轨迹扇形）
+  publish_traj_pc: true
+  publish_cost_grid_pc: false
+
+  # 不维护内部状态：每个新目标都从干净状态开始，
+  # 避免上一个目标的振荡记录污染下一个目标。
+  stateful: false

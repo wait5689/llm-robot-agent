@@ -351,7 +351,8 @@ def main() -> int:
                         help="WSL 侧 nav_bridge 的地址 (默认 http://localhost:9090)")
     parser.add_argument("--host", default="127.0.0.1")
     parser.add_argument("--port", type=int, default=5000)
-    args = parser.parse_args()
+    # 作为 roslaunch 节点启动时 ROS 会追加 __name:= / __log:= 等保留参数
+    args, _unknown = parser.parse_known_args()
 
     logging.basicConfig(
         level=logging.INFO, format="%(asctime)s %(levelname)-7s | %(message)s"

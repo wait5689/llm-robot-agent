@@ -1,16 +1,75 @@
-# move_base 全局配置
+# =========================================================
+# move_base 主配置
+# ---------------------------------------------------------
+# 这里只管「调度与恢复」，速度/轨迹参数见各自 planner 的文件：
+#   - config/dwa_local_planner_params.yaml   （当前使用）
+#   - config/base_local_planner_params.yaml  （旧方案，保留作对照）
+# =========================================================
+
+# 关闭节点时不销毁代价地图：Agent 连续下发多个目标时可省去重建开销
 shutdown_costmaps: false
+
+# ---- 本地规划器 ----
+# 用 base_local_planner/TrajectoryPlannerROS。
+#
+# 曾尝试换成 dwa_local_planner/DWAPlannerROS（本机已安装），
+# 理由是 TPR 在「机器人背对目标」时会持续输出零速而死锁。
+# 但整场景实测 DWA 表现更差（1/8 通过 vs TPR 5/8）：
+#   - 起步慢近 5 倍（corridor 39.5s vs 7.7s）
+#   - 在门口反复触发恢复行为（一次跑出 11 次）
+#   - 更容易把 AMCL 带偏（amcl_err 涨到 4.25m）
+# 原因是 DWA 的轨迹采样在 1.9m 门洞 + 贴墙家具环境下
+# 更容易选出「贴着膨胀层边缘」的轨迹，一旦被判定碰撞就原地不动。
+#
+# TPR 的死锁有明确触发条件（背对目标 180 度且前方空间不足），
+# 属于少数情况；通过合理布置目标点（见 locations.yaml）
+# 可以避开，整体收益更大。
+base_local_planner: "base_local_planner/TrajectoryPlannerROS"
+
+# 全局规划器保持不变：NavfnROS 在 284x244 栅格上 A* 表现良好，
+# 实测 make_plan 稳定返回 300+ 点的完整路径。
+base_global_planner: "navfn/NavfnROS"
+
+# 本地规划器控制频率。
+# 15Hz 在 Gazebo 里能与 diff_drive 的 20Hz 物理步长配合良好；
+# 提高到 20Hz 反而会因为 TF 时间戳抖动出现偶发控制中断。
 controller_frequency: 15.0
-planner_patience: 5.0
-controller_patience: 15.0
+
+# ---- 超时与耐心 ----
+# planner_patience：全局规划迟迟不出路径时，等多久才触发恢复。
+# 8s 足够覆盖 AMCL 短暂跳变导致的一次规划失败。
+planner_patience: 8.0
+
+# controller_patience：本地规划器持续给不出可用速度时，等多久触发恢复。
+# 25s 是刻意给宽的 —— 房间里对姿态需要时间，
+# 太短会在「快到了、正在转向」时误触发恢复，把已走的路白费。
+controller_patience: 25.0
+
+# 恢复行为里 conservative_reset 的清图半径
 conservative_reset_dist: 3.0
+
+# 全局路径重规划频率。1Hz 足够：全局图是静态的，
+# 只有 AMCL 位姿变化才需要重算，提高频率只增加 CPU。
 planner_frequency: 1.0
-oscillation_timeout: 10.0
-oscillation_distance: 0.2
+
+# ---- 振荡检测 ----
+# 「在 oscillation_timeout 秒内移动不足 oscillation_distance」判为振荡。
+# 20s 是平衡值：房间内收尾需要时间，太短会误杀正常的对姿态动作；
+# 太长则真的卡住时迟迟不触发恢复。
+oscillation_timeout: 20.0
+oscillation_distance: 0.20
+
+# 允许恢复行为里的原地旋转。
+# 这是 Agent 端「BLOCKED 后重试」能成功的物理基础 ——
+# 旋转会刷新激光视野，让原本被遮挡的通道重新可见。
 clearing_rotation_allowed: true
+
 recovery_behavior_enabled: true
 
-# 恢复行为：先清代价地图，再原地旋转（这是 Agent 端 BLOCKED 重试能成功的物理基础）
+# ---- 恢复行为 ----
+# 顺序很重要：先清代价地图（去掉残留的鬼影障碍），再原地旋转。
+# 如果先旋转后清图，旋转时看到的残留障碍会立即被重新标记，
+# 等于白转。
 recovery_behaviors:
   - name: conservative_reset
     type: clear_costmap_recovery/ClearCostmapRecovery

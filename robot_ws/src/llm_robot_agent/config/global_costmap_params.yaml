@@ -14,20 +14,27 @@
 
 global_costmap:
   global_frame: map
-  robot_base_frame: base_link
+  # 与 URDF 里 diff_drive 的 robotBaseFrame、AMCL 的 base_frame_id
+  # 三处必须一致，否则多一跳 TF，规划器在高频查询时容易超时。
+  robot_base_frame: base_footprint
 
   update_frequency: 2.0
   publish_frequency: 1.0
 
-  # 用静态地图（建图产物 maps/indoor.yaml）
-  static_map: true
+  # static_map 是 Hydro 之前的老参数，指定 plugins 之后不再生效。
+  # 留着只会打印 "Pre-Hydro parameter static_map unused"，删掉。
   rolling_window: false
   resolution: 0.05
 
-  # AMCL 输出有抖动，容差取 1.0 s 避免 TF 查询偶发超时导致规划器报错
-  transform_tolerance: 1.0
+  # 与 AMCL 的 transform_tolerance 0.25 对齐。
+  # 原来写 1.0：全局代价地图允许 map->base 的变换超前 1 秒，
+  # 会在机器人快速移动时用到「未来」的位姿，
+  # 导致全局路径起点与实际位置错开（表现为路径从身后开始画）。
+  transform_tolerance: 0.25
 
-  # 未知区域（地图外）视为障碍，防止路径被画到地图边界之外
+  # 全局图保留 unknown 语义：地图边界外应视为不可通行，
+  # 防止规划器把路径画到地图外。
+  # （局部图相反，必须是 false，原因见 local_costmap_params.yaml）
   track_unknown_space: true
 
   plugins:

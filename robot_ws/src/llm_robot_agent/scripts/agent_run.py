@@ -113,7 +113,9 @@ def main() -> int:
     parser.add_argument("--seed", type=int, default=42, help="Mock 随机种子")
     parser.add_argument("--verbose", "-v", action="store_true", help="打印完整思考过程")
     parser.add_argument("--json", action="store_true", help="以 JSON 输出最终结果")
-    args = parser.parse_args()
+    # 用 parse_known_args：作为 roslaunch 节点启动时，ROS 会追加
+    # __name:= / __log:= / __ns:= 等保留参数，未知参数不能导致节点退出。
+    args, _unknown = parser.parse_known_args()
 
     logging.basicConfig(
         level=logging.INFO if args.verbose else logging.WARNING,

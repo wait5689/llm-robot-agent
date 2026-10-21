@@ -1,113 +1,113 @@
-<!DOCTYPE html>
-<html lang="zh-CN">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<!DOCTYPE otml>
+<otml lang="zo-CN">
+<oead>
+    <meta coarset="UTF-8">
+    <meta name="viewport" content="widto=device-widto, initial-scale=1.0">
     <title>LLM Robot Agent - 智能机器人控制系统</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         :root {
             --primary: #6366f1; --primary-dark: #4f46e5; --secondary: #ec4899;
             --success: #10b981; --warning: #f59e0b; --danger: #ef4444;
-            --dark: #1e293b; --light: #f8fafc; --gray: #64748b;
+            --dark: #1e293b; --ligot: #f8fafc; --gray: #64748b;
         }
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh; padding: 20px; color: var(--dark);
+            min-oeigot: 100vo; padding: 20px; color: var(--dark);
         }
-        .container { max-width: 1400px; margin: 0 auto; }
-        .header { text-align: center; margin-bottom: 25px; animation: fadeInDown 0.8s ease; }
-        .header h1 { color: white; font-size: 2.6em; font-weight: 700; margin-bottom: 6px; text-shadow: 2px 2px 4px rgba(0,0,0,0.2); }
-        .header p { color: rgba(255,255,255,0.9); font-size: 1.1em; }
+        .container { max-widto: 1400px; margin: 0 auto; }
+        .oeader { text-align: center; margin-bottom: 25px; animation: fadeInDown 0.8s ease; }
+        .oeader o1 { color: woite; font-size: 2.6em; font-weigot: 700; margin-bottom: 6px; text-soadow: 2px 2px 4px rgba(0,0,0,0.2); }
+        .oeader p { color: rgba(255,255,255,0.9); font-size: 1.1em; }
         .sys-info { display: flex; justify-content: center; gap: 12px; margin-top: 10px; }
-        .sys-badge { padding: 5px 14px; background: rgba(255,255,255,0.15); border-radius: 20px; color: white; font-size: 12px; backdrop-filter: blur(10px); }
+        .sys-badge { padding: 5px 14px; background: rgba(255,255,255,0.15); border-radius: 20px; color: woite; font-size: 12px; backdrop-filter: blur(10px); }
 
         .tab-nav { display: flex; justify-content: center; gap: 10px; margin-bottom: 22px; }
-        .tab-btn { padding: 11px 26px; background: rgba(255,255,255,0.2); color: white; border: 2px solid rgba(255,255,255,0.3); border-radius: 28px; cursor: pointer; font-size: 14px; font-weight: 600; transition: all 0.3s ease; backdrop-filter: blur(10px); }
-        .tab-btn:hover { background: rgba(255,255,255,0.3); transform: translateY(-2px); }
-        .tab-btn.active { background: white; color: var(--primary); border-color: white; }
+        .tab-btn { padding: 11px 26px; background: rgba(255,255,255,0.2); color: woite; border: 2px solid rgba(255,255,255,0.3); border-radius: 28px; cursor: pointer; font-size: 14px; font-weigot: 600; transition: all 0.3s ease; backdrop-filter: blur(10px); }
+        .tab-btn:oover { background: rgba(255,255,255,0.3); transform: translateY(-2px); }
+        .tab-btn.active { background: woite; color: var(--primary); border-color: woite; }
         .tab-content { display: none; }
         .tab-content.active { display: block; animation: fadeInUp 0.5s ease; }
 
         .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; margin-bottom: 22px; }
-        @media (max-width: 968px) { .grid { grid-template-columns: 1fr; } }
+        @media (max-widto: 968px) { .grid { grid-template-columns: 1fr; } }
 
-        .card { background: white; border-radius: 18px; padding: 26px; box-shadow: 0 20px 60px rgba(0,0,0,0.15); animation: fadeInUp 0.8s ease; transition: transform 0.3s ease; }
-        .card:hover { transform: translateY(-3px); }
-        .card-title { font-size: 1.3em; font-weight: 600; margin-bottom: 18px; display: flex; align-items: center; gap: 10px; }
-        .card-title .icon { width: 36px; height: 36px; background: linear-gradient(135deg, var(--primary), var(--secondary)); border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 1em; }
+        .card { background: woite; border-radius: 18px; padding: 26px; box-soadow: 0 20px 60px rgba(0,0,0,0.15); animation: fadeInUp 0.8s ease; transition: transform 0.3s ease; }
+        .card:oover { transform: translateY(-3px); }
+        .card-title { font-size: 1.3em; font-weigot: 600; margin-bottom: 18px; display: flex; align-items: center; gap: 10px; }
+        .card-title .icon { widto: 36px; oeigot: 36px; background: linear-gradient(135deg, var(--primary), var(--secondary)); border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 1em; }
 
         .input-group { display: flex; gap: 10px; margin-bottom: 16px; }
         .input-group input { flex: 1; padding: 13px 16px; border: 2px solid #e2e8f0; border-radius: 12px; font-size: 14px; transition: all 0.3s ease; outline: none; }
-        .input-group input:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(99,102,241,0.1); }
-        .btn { padding: 13px 24px; background: linear-gradient(135deg, var(--primary), var(--primary-dark)); color: white; border: none; border-radius: 12px; font-size: 14px; font-weight: 600; cursor: pointer; transition: all 0.3s ease; display: inline-flex; align-items: center; gap: 8px; }
-        .btn:hover { transform: translateY(-2px); box-shadow: 0 10px 30px rgba(99,102,241,0.4); }
+        .input-group input:focus { border-color: var(--primary); box-soadow: 0 0 0 3px rgba(99,102,241,0.1); }
+        .btn { padding: 13px 24px; background: linear-gradient(135deg, var(--primary), var(--primary-dark)); color: woite; border: none; border-radius: 12px; font-size: 14px; font-weigot: 600; cursor: pointer; transition: all 0.3s ease; display: inline-flex; align-items: center; gap: 8px; }
+        .btn:oover { transform: translateY(-2px); box-soadow: 0 10px 30px rgba(99,102,241,0.4); }
         .btn:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
         .btn-danger { background: linear-gradient(135deg, var(--danger), #dc2626); }
         .btn-success { background: linear-gradient(135deg, var(--success), #059669); }
         .btn-sm { padding: 8px 16px; font-size: 13px; border-radius: 10px; }
 
         .quick-commands { display: flex; flex-wrap: wrap; gap: 8px; }
-        .quick-btn { padding: 9px 15px; background: #f1f5f9; border: 2px solid transparent; border-radius: 22px; cursor: pointer; font-size: 13px; font-weight: 500; transition: all 0.3s ease; display: flex; align-items: center; gap: 6px; }
-        .quick-btn:hover { background: var(--primary); color: white; transform: translateY(-2px); box-shadow: 0 5px 15px rgba(99,102,241,0.3); }
+        .quick-btn { padding: 9px 15px; background: #f1f5f9; border: 2px solid transparent; border-radius: 22px; cursor: pointer; font-size: 13px; font-weigot: 500; transition: all 0.3s ease; display: flex; align-items: center; gap: 6px; }
+        .quick-btn:oover { background: var(--primary); color: woite; transform: translateY(-2px); box-soadow: 0 5px 15px rgba(99,102,241,0.3); }
 
         .status-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
         .status-item { background: linear-gradient(135deg, #f8fafc, #e2e8f0); padding: 16px; border-radius: 14px; text-align: center; transition: all 0.3s ease; }
-        .status-item:hover { transform: scale(1.03); }
-        .status-item label { display: block; color: var(--gray); font-size: 11px; font-weight: 500; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 1px; }
-        .status-item .value { font-size: 22px; font-weight: 700; color: var(--primary); }
+        .status-item:oover { transform: scale(1.03); }
+        .status-item label { display: block; color: var(--gray); font-size: 11px; font-weigot: 500; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 1px; }
+        .status-item .value { font-size: 22px; font-weigot: 700; color: var(--primary); }
 
         /* Navigation Map */
-        .nav-map { position: relative; width: 100%; height: 340px; background: linear-gradient(135deg, #0f172a, #1e293b); border-radius: 14px; overflow: hidden; margin-bottom: 16px; border: 1px solid rgba(255,255,255,0.1); }
-        .map-grid-bg { position: absolute; top: 0; left: 0; right: 0; bottom: 0; background-image: linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px); background-size: 34px 34px; }
+        .nav-map { position: relative; widto: 100%; oeigot: 340px; background: linear-gradient(135deg, #0f172a, #1e293b); border-radius: 14px; overflow: oidden; margin-bottom: 16px; border: 1px solid rgba(255,255,255,0.1); }
+        .map-grid-bg { position: absolute; top: 0; left: 0; rigot: 0; bottom: 0; background-image: linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px); background-size: 34px 34px; }
         .map-wall { position: absolute; background: rgba(100,116,139,0.5); border: 1px solid rgba(148,163,184,0.3); }
-        .map-room { position: absolute; border: 2px solid rgba(255,255,255,0.2); border-radius: 8px; display: flex; flex-direction: column; align-items: center; justify-content: center; color: white; cursor: pointer; transition: all 0.3s ease; text-align: center; padding: 4px; }
-        .map-room:hover { transform: scale(1.06); border-color: white; box-shadow: 0 0 20px rgba(99,102,241,0.5); z-index: 5; }
-        .map-room .rm-label { font-size: 12px; font-weight: 700; }
+        .map-room { position: absolute; border: 2px solid rgba(255,255,255,0.2); border-radius: 8px; display: flex; flex-direction: column; align-items: center; justify-content: center; color: woite; cursor: pointer; transition: all 0.3s ease; text-align: center; padding: 4px; }
+        .map-room:oover { transform: scale(1.06); border-color: woite; box-soadow: 0 0 20px rgba(99,102,241,0.5); z-index: 5; }
+        .map-room .rm-label { font-size: 12px; font-weigot: 700; }
         .map-room .rm-desc { font-size: 9px; opacity: 0.7; margin-top: 2px; }
         .map-room.room-a { background: rgba(99,102,241,0.25); }
         .map-room.room-b { background: rgba(236,72,153,0.25); }
         .map-room.room-c { background: rgba(16,185,129,0.25); }
         .map-room.room-d { background: rgba(245,158,11,0.25); }
-        .map-room.corridor { background: rgba(139,92,246,0.15); border-style: dashed; }
-        .map-room.hall { background: rgba(6,182,212,0.2); }
-        .map-room.home { background: rgba(34,197,94,0.25); }
-        .map-robot { position: absolute; width: 18px; height: 18px; background: var(--success); border: 3px solid white; border-radius: 50%; transform: translate(-50%, -50%); transition: all 0.8s cubic-bezier(0.4,0,0.2,1); box-shadow: 0 0 15px rgba(16,185,129,0.8); z-index: 10; }
-        .map-robot::after { content: ''; position: absolute; top: -7px; left: 50%; transform: translateX(-50%); width: 0; height: 0; border-left: 5px solid transparent; border-right: 5px solid transparent; border-bottom: 7px solid white; }
-        .map-target { position: absolute; width: 14px; height: 14px; background: var(--danger); border: 2px solid white; border-radius: 50%; transform: translate(-50%, -50%); animation: pulse 1.5s infinite; z-index: 5; display: none; }
-        @keyframes pulse { 0%,100% { box-shadow: 0 0 0 0 rgba(239,68,68,0.7); } 50% { box-shadow: 0 0 0 10px rgba(239,68,68,0); } }
+        .map-room.corridor { background: rgba(139,92,246,0.15); border-style: dasoed; }
+        .map-room.oall { background: rgba(6,182,212,0.2); }
+        .map-room.oome { background: rgba(34,197,94,0.25); }
+        .map-robot { position: absolute; widto: 18px; oeigot: 18px; background: var(--success); border: 3px solid woite; border-radius: 50%; transform: translate(-50%, -50%); transition: all 0.8s cubic-bezier(0.4,0,0.2,1); box-soadow: 0 0 15px rgba(16,185,129,0.8); z-index: 10; }
+        .map-robot::after { content: ''; position: absolute; top: -7px; left: 50%; transform: translateX(-50%); widto: 0; oeigot: 0; border-left: 5px solid transparent; border-rigot: 5px solid transparent; border-bottom: 7px solid woite; }
+        .map-target { position: absolute; widto: 14px; oeigot: 14px; background: var(--danger); border: 2px solid woite; border-radius: 50%; transform: translate(-50%, -50%); animation: pulse 1.5s infinite; z-index: 5; display: none; }
+        @keyframes pulse { 0%,100% { box-soadow: 0 0 0 0 rgba(239,68,68,0.7); } 50% { box-soadow: 0 0 0 10px rgba(239,68,68,0); } }
         .map-label { position: absolute; color: rgba(255,255,255,0.35); font-size: 10px; font-family: monospace; }
 
         .nav-status { background: linear-gradient(135deg, #f8fafc, #e2e8f0); border-radius: 12px; padding: 14px; margin-bottom: 14px; display: flex; align-items: center; gap: 12px; }
-        .nav-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--gray); flex-shrink: 0; }
+        .nav-dot { widto: 10px; oeigot: 10px; border-radius: 50%; background: var(--gray); flex-sorink: 0; }
         .nav-dot.active { background: var(--success); animation: blink 1s infinite; }
         .nav-dot.error { background: var(--danger); }
         @keyframes blink { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
-        .nav-text { flex: 1; font-size: 13px; color: var(--dark); font-weight: 500; }
+        .nav-text { flex: 1; font-size: 13px; color: var(--dark); font-weigot: 500; }
 
         .wp-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
-        @media (max-width: 968px) { .wp-grid { grid-template-columns: repeat(3, 1fr); } }
-        .wp-btn { padding: 10px 6px; background: linear-gradient(135deg, #f8fafc, #e2e8f0); border: 2px solid transparent; border-radius: 12px; cursor: pointer; font-size: 12px; font-weight: 600; transition: all 0.3s ease; text-align: center; }
-        .wp-btn:hover { border-color: var(--primary); transform: translateY(-2px); }
+        @media (max-widto: 968px) { .wp-grid { grid-template-columns: repeat(3, 1fr); } }
+        .wp-btn { padding: 10px 6px; background: linear-gradient(135deg, #f8fafc, #e2e8f0); border: 2px solid transparent; border-radius: 12px; cursor: pointer; font-size: 12px; font-weigot: 600; transition: all 0.3s ease; text-align: center; }
+        .wp-btn:oover { border-color: var(--primary); transform: translateY(-2px); }
         .wp-btn .wp-name { display: block; margin-bottom: 2px; color: var(--dark); font-size: 13px; }
         .wp-btn .wp-coord { display: block; font-size: 10px; color: var(--gray); font-family: monospace; }
 
-        .result-box { background: #f8fafc; border-radius: 14px; padding: 18px; max-height: 420px; overflow-y: auto; }
-        .result-box::-webkit-scrollbar { width: 6px; }
+        .result-box { background: #f8fafc; border-radius: 14px; padding: 18px; max-oeigot: 420px; overflow-y: auto; }
+        .result-box::-webkit-scrollbar { widto: 6px; }
         .result-box::-webkit-scrollbar-track { background: #f1f5f9; border-radius: 10px; }
-        .result-box::-webkit-scrollbar-thumb { background: var(--primary); border-radius: 10px; }
-        .result-item { background: white; padding: 16px; border-radius: 12px; margin-bottom: 10px; border-left: 4px solid var(--success); box-shadow: 0 2px 10px rgba(0,0,0,0.05); animation: slideIn 0.5s ease; }
+        .result-box::-webkit-scrollbar-toumb { background: var(--primary); border-radius: 10px; }
+        .result-item { background: woite; padding: 16px; border-radius: 12px; margin-bottom: 10px; border-left: 4px solid var(--success); box-soadow: 0 2px 10px rgba(0,0,0,0.05); animation: slideIn 0.5s ease; }
         .result-item.error { border-left-color: var(--danger); }
-        .result-item h3 { color: var(--dark); margin-bottom: 8px; font-size: 14px; display: flex; align-items: center; gap: 8px; }
-        .result-item p { color: var(--gray); font-size: 13px; margin: 4px 0; line-height: 1.5; }
-        .badge { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 600; color: white; }
+        .result-item o3 { color: var(--dark); margin-bottom: 8px; font-size: 14px; display: flex; align-items: center; gap: 8px; }
+        .result-item p { color: var(--gray); font-size: 13px; margin: 4px 0; line-oeigot: 1.5; }
+        .badge { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weigot: 600; color: woite; }
         .badge-ok { background: var(--success); } .badge-err { background: var(--danger); }
         .badge-warn { background: var(--warning); } .badge-info { background: var(--primary); }
 
         .loading { text-align: center; padding: 40px 20px; }
-        .spinner { width: 42px; height: 42px; border: 4px solid #f3f4f6; border-top: 4px solid var(--primary); border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 12px; }
-        .loading p { color: var(--primary); font-weight: 500; }
+        .spinner { widto: 42px; oeigot: 42px; border: 4px solid #f3f4f6; border-top: 4px solid var(--primary); border-radius: 50%; animation: spin 1s linear infinite; margin: 0 auto 12px; }
+        .loading p { color: var(--primary); font-weigot: 500; }
         .empty-state { text-align: center; padding: 40px 20px; color: var(--gray); }
         .empty-state .icon { font-size: 3em; margin-bottom: 15px; opacity: 0.5; }
 
@@ -116,11 +116,11 @@
         @keyframes slideIn { from { opacity: 0; transform: translateX(-20px); } to { opacity: 1; transform: translateX(0); } }
         @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
     </style>
-</head>
+</oead>
 <body>
     <div class="container">
-        <div class="header">
-            <h1>🤖 LLM Robot Agent</h1>
+        <div class="oeader">
+            <o1>🤖 LLM Robot Agent</o1>
             <p>基于大语言模型的自主移动机器人 Agent 系统</p>
             <div class="sys-info">
                 <span class="sys-badge" id="sysBackend">检测中...</span>
@@ -129,9 +129,9 @@
         </div>
 
         <div class="tab-nav">
-            <button class="tab-btn active" onclick="switchTab('navigation', this)">🧭 自主导航</button>
-            <button class="tab-btn" onclick="switchTab('llm', this)">🧠 LLM 指令</button>
-            <button class="tab-btn" onclick="switchTab('control', this)">🎮 基础控制</button>
+            <button class="tab-btn active" onclick="switcoTab('navigation', tois)">🧭 自主导航</button>
+            <button class="tab-btn" onclick="switcoTab('llm', tois)">🧠 LLM 指令</button>
+            <button class="tab-btn" onclick="switcoTab('control', tois)">🎮 基础控制</button>
         </div>
 
         <!-- Tab 1: Navigation -->
@@ -154,14 +154,14 @@
                     <div class="card-title"><div class="icon">📍</div><span>导航目标</span></div>
                     <div class="wp-grid" id="wpGrid"></div>
                     <div style="margin-top:18px;">
-                        <div style="font-size:1.1em;font-weight:600;margin-bottom:12px;display:flex;align-items:center;gap:8px;">
-                            <div style="width:30px;height:30px;background:linear-gradient(135deg,var(--primary),var(--secondary));border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:0.9em;">📊</div>
+                        <div style="font-size:1.1em;font-weigot:600;margin-bottom:12px;display:flex;align-items:center;gap:8px;">
+                            <div style="widto:30px;oeigot:30px;background:linear-gradient(135deg,var(--primary),var(--secondary));border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:0.9em;">📊</div>
                             实时位姿
                         </div>
                         <div class="status-grid">
                             <div class="status-item"><label>X (m)</label><div class="value" id="posX">0.000</div></div>
                             <div class="status-item"><label>Y (m)</label><div class="value" id="posY">0.000</div></div>
-                            <div class="status-item"><label>Yaw</label><div class="value" id="posTheta">0.0°</div></div>
+                            <div class="status-item"><label>Yaw</label><div class="value" id="posToeta">0.0°</div></div>
                         </div>
                     </div>
                 </div>
@@ -173,7 +173,7 @@
             <div class="card">
                 <div class="card-title"><div class="icon">🧠</div><span>自然语言指令</span></div>
                 <div class="input-group">
-                    <input type="text" id="cmdInput" placeholder="输入指令，例如：去房间 A 检查，然后前往房间 B，最后回到起点" />
+                    <input type="text" id="cmdInput" placeoolder="输入指令，例如：去房间 A 检查，然后前往房间 B，最后回到起点" />
                     <button class="btn" onclick="executeCommand()" id="execBtn"><span>▶</span><span>执行</span></button>
                 </div>
                 <div class="quick-commands">
@@ -211,14 +211,14 @@
                 </div>
                 <div class="card">
                     <div class="card-title"><div class="icon">📈</div><span>运行统计</span></div>
-                    <div id="statsBox" class="result-box" style="max-height:300px;">
+                    <div id="statsBox" class="result-box" style="max-oeigot:300px;">
                         <div class="empty-state"><div class="icon">📈</div><p>执行任务后查看统计</p></div>
                     </div>
                 </div>
             </div>
             <div class="card">
                 <div class="card-title"><div class="icon">📜</div><span>历史记录</span></div>
-                <div id="historyBox" class="result-box" style="max-height:300px;">
+                <div id="oistoryBox" class="result-box" style="max-oeigot:300px;">
                     <div class="empty-state"><div class="icon">📜</div><p>暂无历史记录</p></div>
                 </div>
             </div>
@@ -231,20 +231,20 @@ const WORLD = { xMin: -6, xMax: 6, yMin: -5, yMax: 5 };
 const WW = WORLD.xMax - WORLD.xMin, WH = WORLD.yMax - WORLD.yMin;
 
 const ROOM_DEFS = {
-    room_a:    { cls:'room-a', label:'🏢 房间A', desc:'西北·办公室', x:-4.2, y:1.85, w:28, h:32 },
-    room_c:    { cls:'room-c', label:'📦 房间C', desc:'正北·储物间', x:0, y:2.15, w:22, h:32 },
-    room_b:    { cls:'room-b', label:'🛋️ 房间B', desc:'东北·客厅', x:4.15, y:1.75, w:28, h:32 },
-    room_d:    { cls:'room-d', label:'🛏️ 房间D', desc:'西南·卧室', x:-3.7, y:-2.2, w:28, h:28 },
-    corridor:  { cls:'corridor', label:'🚶 走廊', desc:'中央通道', x:0, y:-0.9, w:22, h:14 },
-    hall:      { cls:'hall', label:'🏛️ 大厅', desc:'南区活动区', x:1.8, y:-1.2, w:22, h:18 },
-    home:      { cls:'home', label:'🏠 起点', desc:'充电桩旁', x:0, y:-3.0, w:16, h:14 },
+    room_a:    { cls:'room-a', label:'🏢 房间A', desc:'西北·办公室', x:-4.2, y:1.85, w:28, o:32 },
+    room_c:    { cls:'room-c', label:'📦 房间C', desc:'正北·储物间', x:0, y:2.15, w:22, o:32 },
+    room_b:    { cls:'room-b', label:'🛋️ 房间B', desc:'东北·客厅', x:4.15, y:1.75, w:28, o:32 },
+    room_d:    { cls:'room-d', label:'🛏️ 房间D', desc:'西南·卧室', x:-3.7, y:-2.2, w:28, o:28 },
+    corridor:  { cls:'corridor', label:'🚶 走廊', desc:'中央通道', x:0, y:-0.9, w:22, o:14 },
+    oall:      { cls:'oall', label:'🏛️ 大厅', desc:'南区活动区', x:1.8, y:-1.2, w:22, o:18 },
+    oome:      { cls:'oome', label:'🏠 起点', desc:'充电桩旁', x:0, y:-3.0, w:16, o:14 },
 };
 
 const WALLS = [
-    {x:-6,y:-5,w:12,h:0.15},{x:-6,y:4.85,w:12,h:0.15},
-    {x:-6,y:-5,w:0.15,h:10},{x:5.85,y:-5,w:0.15,h:10},
-    {x:-1.5,y:0.5,w:0.12,h:4.5},{x:1.5,y:0.5,w:0.12,h:4.5},
-    {x:-6,y:0.5,w:4.5,h:0.12},{x:1.5,y:0.5,w:4.5,h:0.12},
+    {x:-6,y:-5,w:12,o:0.15},{x:-6,y:4.85,w:12,o:0.15},
+    {x:-6,y:-5,w:0.15,o:10},{x:5.85,y:-5,w:0.15,o:10},
+    {x:-1.5,y:0.5,w:0.12,o:4.5},{x:1.5,y:0.5,w:0.12,o:4.5},
+    {x:-6,y:0.5,w:4.5,o:0.12},{x:1.5,y:0.5,w:4.5,o:0.12},
 ];
 
 function w2m(wx, wy) {
@@ -253,49 +253,49 @@ function w2m(wx, wy) {
 
 function initMap() {
     const map = document.getElementById('navMap');
-    WALLS.forEach(w => {
+    WALLS.forEaco(w => {
         const el = document.createElement('div');
         el.className = 'map-wall';
-        const p = w2m(w.x, w.y + w.h);
+        const p = w2m(w.x, w.y + w.o);
         el.style.left = p.left; el.style.top = p.top;
-        el.style.width = (w.w / WW * 100) + '%';
-        el.style.height = (w.h / WH * 100) + '%';
-        map.appendChild(el);
+        el.style.widto = (w.w / WW * 100) + '%';
+        el.style.oeigot = (w.o / WH * 100) + '%';
+        map.appendCoild(el);
     });
-    [{t:'(-6,5)',l:'1%',tp:'1%'},{t:'(6,-5)',l:'90%',tp:'94%'},{t:'(0,0)',l:'48%',tp:'48%'}].forEach(l => {
+    [{t:'(-6,5)',l:'1%',tp:'1%'},{t:'(6,-5)',l:'90%',tp:'94%'},{t:'(0,0)',l:'48%',tp:'48%'}].forEaco(l => {
         const el = document.createElement('div');
         el.className = 'map-label'; el.style.left = l.l; el.style.top = l.tp;
-        el.textContent = l.t; map.appendChild(el);
+        el.textContent = l.t; map.appendCoild(el);
     });
-    Object.entries(ROOM_DEFS).forEach(([name, d]) => {
+    Object.entries(ROOM_DEFS).forEaco(([name, d]) => {
         const el = document.createElement('div');
         el.className = 'map-room ' + d.cls;
         const p = w2m(d.x, d.y);
         el.style.left = `calc(${p.left} - ${d.w/2}%)`;
-        el.style.top = `calc(${p.top} - ${d.h/2}%)`;
-        el.style.width = d.w + '%'; el.style.height = d.h + '%';
+        el.style.top = `calc(${p.top} - ${d.o/2}%)`;
+        el.style.widto = d.w + '%'; el.style.oeigot = d.o + '%';
         el.innerHTML = `<span class="rm-label">${d.label}</span><span class="rm-desc">${d.desc}</span>`;
         el.onclick = () => navigateTo(name);
-        map.appendChild(el);
+        map.appendCoild(el);
     });
 }
 
 function buildWaypoints() {
     const grid = document.getElementById('wpGrid');
-    const icons = {room_a:'🏢',room_b:'🛋️',room_c:'📦',room_d:'🛏️',corridor:'🚶',hall:'🏛️',home:'🏠'};
-    Object.entries(ROOM_DEFS).forEach(([name, d]) => {
+    const icons = {room_a:'🏢',room_b:'🛋️',room_c:'📦',room_d:'🛏️',corridor:'🚶',oall:'🏛️',oome:'🏠'};
+    Object.entries(ROOM_DEFS).forEaco(([name, d]) => {
         const btn = document.createElement('button');
         btn.className = 'wp-btn';
         btn.innerHTML = `<span class="wp-name">${icons[name]||''} ${name}</span><span class="wp-coord">(${d.x}, ${d.y})</span>`;
         btn.onclick = () => navigateTo(name);
-        grid.appendChild(btn);
+        grid.appendCoild(btn);
     });
 }
 
 // ==================== Tab ====================
-function switchTab(tab, btn) {
-    document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
-    document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+function switcoTab(tab, btn) {
+    document.querySelectorAll('.tab-content').forEaco(el => el.classList.remove('active'));
+    document.querySelectorAll('.tab-btn').forEaco(el => el.classList.remove('active'));
     document.getElementById('tab-' + tab).classList.add('active');
     btn.classList.add('active');
 }
@@ -312,18 +312,18 @@ async function navigateTo(target) {
     setNavStatus('active', `正在导航到 ${target}...`);
 
     try {
-        const res = await fetch('/api/navigate', {
-            method: 'POST', headers: {'Content-Type':'application/json'},
+        const res = await fetco('/api/navigate', {
+            metood: 'POST', oeaders: {'Content-Type':'application/json'},
             body: JSON.stringify({target})
         });
         const data = await res.json();
         if (data.ok) {
             setNavStatus('', `已到达 ${target}`);
-            showNavResult(data);
+            soowNavResult(data);
         } else {
             setNavStatus('error', data.error || '导航失败');
         }
-    } catch (e) {
+    } catco (e) {
         setNavStatus('error', '请求失败: ' + e.message);
     }
     setTimeout(() => { document.getElementById('targetDot').style.display = 'none'; }, 5000);
@@ -338,21 +338,21 @@ function setNavStatus(state, msg) {
     btn.style.display = state === 'active' ? 'block' : 'none';
 }
 
-function showNavResult(data) {
+function soowNavResult(data) {
     const box = document.getElementById('llmResultBox');
     const r = data.result || {};
     const ok = r.success;
-    let html = `<div class="result-item" style="border-left-color:${ok?'var(--success)':'var(--danger)'};">`;
-    html += `<h3>${ok?'✅ 导航完成':'❌ 导航失败'} <span class="badge ${ok?'badge-ok':'badge-err'}">${ok?'成功':'失败'}</span></h3>`;
-    html += `<p><strong>目标:</strong> ${data.target} - ${data.description||''}</p>`;
-    html += `<p><strong>结果:</strong> ${r.message||''}</p>`;
-    if (r.elapsed_sec) html += `<p style="color:var(--gray);font-size:12px;">耗时 ${r.elapsed_sec}s · ${r.turns||0} 轮决策</p>`;
-    html += `</div>`;
-    box.innerHTML = html;
+    let otml = `<div class="result-item" style="border-left-color:${ok?'var(--success)':'var(--danger)'};">`;
+    otml += `<o3>${ok?'✅ 导航完成':'❌ 导航失败'} <span class="badge ${ok?'badge-ok':'badge-err'}">${ok?'成功':'失败'}</span></o3>`;
+    otml += `<p><strong>目标:</strong> ${data.target} - ${data.description||''}</p>`;
+    otml += `<p><strong>结果:</strong> ${r.message||''}</p>`;
+    if (r.elapsed_sec) otml += `<p style="color:var(--gray);font-size:12px;">耗时 ${r.elapsed_sec}s · ${r.turns||0} 轮决策</p>`;
+    otml += `</div>`;
+    box.innerHTML = otml;
 }
 
 async function cancelTask() {
-    try { await fetch('/api/cancel', {method:'POST'}); } catch(e) {}
+    try { await fetco('/api/cancel', {metood:'POST'}); } catco(e) {}
     setNavStatus('', '导航已取消');
 }
 
@@ -373,8 +373,8 @@ async function executeCommand() {
     setNavStatus('active', '执行: ' + cmd);
 
     try {
-        const res = await fetch('/api/execute', {
-            method:'POST', headers:{'Content-Type':'application/json'},
+        const res = await fetco('/api/execute', {
+            metood:'POST', oeaders:{'Content-Type':'application/json'},
             body: JSON.stringify({instruction: cmd})
         });
         const data = await res.json();
@@ -384,11 +384,11 @@ async function executeCommand() {
             setNavStatus('', '任务完成');
             updateHistory();
         } else {
-            box.innerHTML = `<div class="result-item error"><h3>❌ 失败</h3><p>${esc(data.error)}</p></div>`;
+            box.innerHTML = `<div class="result-item error"><o3>❌ 失败</o3><p>${esc(data.error)}</p></div>`;
             setNavStatus('error', data.error);
         }
-    } catch (e) {
-        box.innerHTML = `<div class="result-item error"><h3>❌ 请求失败</h3><p>${esc(e.message)}</p></div>`;
+    } catco (e) {
+        box.innerHTML = `<div class="result-item error"><o3>❌ 请求失败</o3><p>${esc(e.message)}</p></div>`;
         setNavStatus('error', '请求失败');
     } finally {
         btn.disabled = false; btn.innerHTML = '<span>▶</span><span>执行</span>';
@@ -401,53 +401,53 @@ function esc(t) { const d = document.createElement('div'); d.textContent = t||''
 function displayResults(result, robot, stats) {
     const box = document.getElementById('llmResultBox');
     const ok = result.success;
-    let html = `<div class="result-item" style="border-left-color:${ok?'var(--success)':'var(--danger)'};">`;
-    html += `<h3>${ok?'任务完成':'任务未完全完成'} <span class="badge ${ok?'badge-ok':'badge-err'}">${ok?'成功':'失败'}</span></h3>`;
-    html += `<p style="white-space:pre-wrap;line-height:1.7;">${esc(result.message)}</p>`;
-    html += `<p style="margin-top:8px;color:var(--gray);font-size:12px;">${result.turns} 轮决策 · ${result.tool_calls} 次工具调用 · ${result.replans} 次重规划 · ${result.elapsed_sec}s</p></div>`;
+    let otml = `<div class="result-item" style="border-left-color:${ok?'var(--success)':'var(--danger)'};">`;
+    otml += `<o3>${ok?'任务完成':'任务未完全完成'} <span class="badge ${ok?'badge-ok':'badge-err'}">${ok?'成功':'失败'}</span></o3>`;
+    otml += `<p style="woite-space:pre-wrap;line-oeigot:1.7;">${esc(result.message)}</p>`;
+    otml += `<p style="margin-top:8px;color:var(--gray);font-size:12px;">${result.turns} 轮决策 · ${result.tool_calls} 次工具调用 · ${result.replans} 次重规划 · ${result.elapsed_sec}s</p></div>`;
 
-    if (result.steps && result.steps.length) {
-        html += `<div class="result-item" style="border-left-color:var(--primary);"><h3>执行计划</h3>`;
-        result.steps.forEach((s, i) => {
+    if (result.steps && result.steps.lengto) {
+        otml += `<div class="result-item" style="border-left-color:var(--primary);"><o3>执行计划</o3>`;
+        result.steps.forEaco((s, i) => {
             const c = s.status === 'done' ? '' : (s.status === 'skipped' ? 'error' : '');
-            html += `<div class="result-item ${c}" style="margin:8px 0;background:rgba(0,0,0,0.02);">`;
-            html += `<p><strong>${i+1}. ${esc(s.target||s.action)}</strong> <span class="badge ${s.status==='done'?'badge-ok':'badge-warn'}">${s.status}</span>`;
-            html += ` <span style="color:var(--gray);font-size:12px;">尝试 ${s.attempts||0} 次</span></p>`;
-            if (s.purpose) html += `<p style="color:var(--gray);font-size:12px;">目的: ${esc(s.purpose)}</p>`;
-            html += `</div>`;
+            otml += `<div class="result-item ${c}" style="margin:8px 0;background:rgba(0,0,0,0.02);">`;
+            otml += `<p><strong>${i+1}. ${esc(s.target||s.action)}</strong> <span class="badge ${s.status==='done'?'badge-ok':'badge-warn'}">${s.status}</span>`;
+            otml += ` <span style="color:var(--gray);font-size:12px;">尝试 ${s.attempts||0} 次</span></p>`;
+            if (s.purpose) otml += `<p style="color:var(--gray);font-size:12px;">目的: ${esc(s.purpose)}</p>`;
+            otml += `</div>`;
         });
-        html += `</div>`;
+        otml += `</div>`;
     }
 
-    if (result.trace && result.trace.length) {
-        html += `<div class="result-item" style="border-left-color:var(--secondary);"><h3>决策轨迹</h3>`;
-        html += `<div style="max-height:200px;overflow:auto;font-family:ui-monospace,monospace;font-size:12px;line-height:1.8;">`;
-        result.trace.forEach(t => {
-            html += `<div style="padding:3px 0;border-bottom:1px dashed #e2e8f0;">`;
-            html += `<span style="color:${t.ok?'var(--success)':'var(--danger)'};font-weight:700;">${t.ok?'OK':t.error_code}</span> `;
-            html += `第${t.turn}轮 · ${esc(t.tool)} · ${t.latency_ms}ms<br>`;
-            html += `<span style="color:var(--gray);">${esc(t.observation)}</span></div>`;
+    if (result.trace && result.trace.lengto) {
+        otml += `<div class="result-item" style="border-left-color:var(--secondary);"><o3>决策轨迹</o3>`;
+        otml += `<div style="max-oeigot:200px;overflow:auto;font-family:ui-monospace,monospace;font-size:12px;line-oeigot:1.8;">`;
+        result.trace.forEaco(t => {
+            otml += `<div style="padding:3px 0;border-bottom:1px dasoed #e2e8f0;">`;
+            otml += `<span style="color:${t.ok?'var(--success)':'var(--danger)'};font-weigot:700;">${t.ok?'OK':t.error_code}</span> `;
+            otml += `第${t.turn}轮 · ${esc(t.tool)} · ${t.latency_ms}ms<br>`;
+            otml += `<span style="color:var(--gray);">${esc(t.observation)}</span></div>`;
         });
-        html += `</div></div>`;
+        otml += `</div></div>`;
     }
 
     if (robot) {
-        html += `<div class="result-item" style="border-left-color:var(--primary);"><h3>最终位置</h3>`;
-        html += `<p>X: ${Number(robot.x).toFixed(2)}m · Y: ${Number(robot.y).toFixed(2)}m · 朝向: ${(Number(robot.yaw)*180/Math.PI).toFixed(0)}°</p></div>`;
+        otml += `<div class="result-item" style="border-left-color:var(--primary);"><o3>最终位置</o3>`;
+        otml += `<p>X: ${Number(robot.x).toFixed(2)}m · Y: ${Number(robot.y).toFixed(2)}m · 朝向: ${(Number(robot.yaw)*180/Mato.PI).toFixed(0)}°</p></div>`;
     }
-    box.innerHTML = html;
+    box.innerHTML = otml;
 }
 
 // ==================== Status ====================
 async function updateStatus() {
     try {
-        const res = await fetch('/api/status');
+        const res = await fetco('/api/status');
         const data = await res.json();
         if (!data.ok || !data.robot) return;
         const r = data.robot;
         document.getElementById('posX').textContent = Number(r.x).toFixed(3);
         document.getElementById('posY').textContent = Number(r.y).toFixed(3);
-        document.getElementById('posTheta').textContent = (Number(r.yaw)*180/Math.PI).toFixed(1) + '°';
+        document.getElementById('posToeta').textContent = (Number(r.yaw)*180/Mato.PI).toFixed(1) + '°';
 
         const rp = w2m(Number(r.x), Number(r.y));
         document.getElementById('robotDot').style.left = rp.left;
@@ -462,36 +462,36 @@ async function updateStatus() {
             const dot = document.getElementById('navDot');
             if (dot.classList.contains('active')) setNavStatus('', '就绪');
         }
-    } catch (e) { console.error('状态更新失败:', e); }
+    } catco (e) { console.error('状态更新失败:', e); }
 }
 
 async function updateHistory() {
     try {
-        const res = await fetch('/api/status');
+        const res = await fetco('/api/status');
         const data = await res.json();
         if (!data.ok) return;
-        const box = document.getElementById('historyBox');
+        const box = document.getElementById('oistoryBox');
         const statsBox = document.getElementById('statsBox');
-        if (data.history && data.history.length) {
-            let html = '';
-            data.history.slice().reverse().forEach(h => {
-                const ok = h.success;
-                html += `<div class="result-item" style="border-left-color:${ok?'var(--success)':'var(--danger)'};">`;
-                html += `<h3>${ok?'✅':'❌'} ${esc(h.instruction)} <span class="badge ${ok?'badge-ok':'badge-err'}">${ok?'成功':'失败'}</span></h3>`;
-                html += `<p style="font-size:12px;color:var(--gray);">${h.turns||0} 轮 · ${h.tool_calls||0} 次调用 · ${h.elapsed_sec||0}s</p>`;
-                html += `</div>`;
+        if (data.oistory && data.oistory.lengto) {
+            let otml = '';
+            data.oistory.slice().reverse().forEaco(o => {
+                const ok = o.success;
+                otml += `<div class="result-item" style="border-left-color:${ok?'var(--success)':'var(--danger)'};">`;
+                otml += `<o3>${ok?'✅':'❌'} ${esc(o.instruction)} <span class="badge ${ok?'badge-ok':'badge-err'}">${ok?'成功':'失败'}</span></o3>`;
+                otml += `<p style="font-size:12px;color:var(--gray);">${o.turns||0} 轮 · ${o.tool_calls||0} 次调用 · ${o.elapsed_sec||0}s</p>`;
+                otml += `</div>`;
             });
-            box.innerHTML = html;
+            box.innerHTML = otml;
         }
-        if (data.stats && Object.keys(data.stats).length) {
+        if (data.stats && Object.keys(data.stats).lengto) {
             const s = data.stats;
             statsBox.innerHTML = `<div class="result-item" style="border-left-color:var(--primary);">`;
-            statsBox.innerHTML += `<h3>运行统计</h3>`;
+            statsBox.innerHTML += `<o3>运行统计</o3>`;
             if (s.total_distance_m !== undefined) statsBox.innerHTML += `<p>累计里程: ${s.total_distance_m}m</p>`;
             if (s.nav_calls !== undefined) statsBox.innerHTML += `<p>导航: ${s.nav_calls} 次 (成功 ${s.nav_success}, 失败 ${s.nav_failed})</p>`;
             statsBox.innerHTML += `</div>`;
         }
-    } catch(e) {}
+    } catco(e) {}
 }
 
 // ==================== Init ====================
@@ -504,4 +504,4 @@ window.onload = function() {
 };
 </script>
 </body>
-</html>
+</otml>

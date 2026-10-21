@@ -9,6 +9,8 @@
 TrajectoryPlannerROS:
   # 线速度
   max_vel_x: 0.30
+  # min_vel_x 必须为 0：DWA 一旦允许倒车，
+  # 在门口容易后退撞墙并持续打滑，里程计随之虚增，AMCL 直接跟丢。
   min_vel_x: 0.0
   max_vel_theta: 1.0
   min_in_place_vel_theta: 0.35
@@ -20,11 +22,32 @@ TrajectoryPlannerROS:
   # 到达判定。必须与 config/agent.yaml 的 navigation.goal_tolerance 协调：
   # agent 侧 0.30 m，这里取 0.20 m 更严格，
   # 保证 move_base 报 SUCCEEDED 时 agent 的到达判定也一定成立。
+  # ★ latch_xy_goal_tolerance 必须保持 false。
+  #
+  # 这里踩了一个很隐蔽的坑，记下来避免重犯：
+  # 曾经为了消除「到达目标后原地画小圈」，把它改成 true，结果更糟 ——
+  # 机器人在 room_a（map 位姿 (-3.56,3.01)）接受去 home 的目标后，
+  # move_base 持续以 15Hz 发布 cmd_vel，但线速度与角速度恒为 0，
+  # 目标永不结束（state 一直 ACTIVE），也不报任何错误。
+  #
+  # 原因：latch=true 后，DWA 一旦进入 xy_goal_tolerance 就锁定平移，
+  # 只允许原地转 yaw。而该处 yaw 早已满足 yaw_goal_tolerance，
+  # 于是「不准走、也不用转」——规划器每周期都输出零速，
+  # move_base 认为机器人还在努力，永不判失败。
+  # 症状：机器人彻底静止，日志干净，全靠 timeout 才发现。
+  #
+  # 保持 false 时，若漂出容差会重新平移修正，不会僵死。
+  # 「原地画小圈」另有根治办法：放宽 oscillation 阈值（见 move_base_params.yaml）。
   xy_goal_tolerance: 0.20
   yaw_goal_tolerance: 0.20
   latch_xy_goal_tolerance: false
 
+  # 对准 yaw 的最低角速度。0.35 对 0.20rad 容差偏大，容易过冲反打。
+  min_in_place_vel_theta: 0.20
+
   # 轨迹采样
+  # sim_time 保持 1.7。试过 2.0：前瞻变长后 DWA 在 1.6m 门洞前
+  # 更倾向选「减速绕行」而不是「直接穿过」，反而在门口犹豫不决。
   sim_time: 1.7
   sim_granularity: 0.025
   vx_samples: 20
@@ -34,6 +57,10 @@ TrajectoryPlannerROS:
   # 评分权重：提高 path/heading 权重让走道更居中，减少贴墙
   path_distance_bias: 32.0
   goal_distance_bias: 24.0
+  # occdist_scale 必须保持很小。它是「离障碍多近就扣分」的权重，
+  # 试过 0.05：在 1.6m 门洞里，两侧膨胀层同时产生代价，
+  # DWA 认为所有轨迹都危险，于是原地不动等恢复行为。
+  # 0.02 让规划器优先跟随全局路径，穿门更果断。
   occdist_scale: 0.02
 
   # 差速机器人
@@ -41,4 +68,7 @@ TrajectoryPlannerROS:
   meter_scoring: true
 
   # 震荡抑制：来回摆动超过阈值就交给 move_base 的恢复行为
-  oscillation_reset_dist: 0.10
+  # 从 0.10 放宽到 0.20：房间里横向空间只有 ~0.5m，
+  # 0.10m 的复位阈值会让 DWA 频繁重置轨迹，加剧摆动；
+  # 但放太宽（试过 0.30）会让「确实卡住」的情况迟迟不触发恢复。
+  oscillation_reset_dist: 0.20

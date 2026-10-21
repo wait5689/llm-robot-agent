@@ -44,7 +44,24 @@ import sys
 
 WALL_H = 2.5        # 墙高（真实层高）
 WALL_T = 0.15       # 墙厚
-DOOR_W = 1.10       # 门洞净宽
+
+# 门洞净宽：1.10 -> 1.60 -> 1.90。
+#
+# 演化过程（全部是实测数据，不是估算）：
+#   1.10m：叠加 inflation 0.42 后净空 0.26m < 机器人内切 0.32m，
+#          门在代价地图上等价封死，规划必然失败。
+#   1.60m：全局规划能过，但实测 move_base 在 1.6m 门洞处反复振荡。
+#          量了净空剖面才发现问题不在门本身，而在门「内外两侧」：
+#          门洞 y∈[0.90,2.50] 宽 1.60 看着够，
+#          但门内侧净空只有 0.50~0.57m，
+#          扣除 inflation 0.35 后仅剩 0.15~0.22m，
+#          比机器人内切半径 0.23m 还小 —— 等于窄了。
+#   1.90m：门内外净空提到 0.65~0.72m，扣除膨胀后余量 0.30~0.37m，
+#          大于内切半径，DWA 才有足够横向空间走出弧线。
+#
+# 结论：判断门够不够宽，不能只看门洞尺寸，
+#       必须看「门洞 + 两侧各 0.5m」那段的最窄净空。
+DOOR_W = 1.90
 DOOR_H = 2.10       # 门洞高度（标准门高）
 BASEBOARD_H = 0.10  # 踢脚线高度
 BASEBOARD_D = 0.02  # 踢脚线突出墙面
@@ -55,8 +72,13 @@ Y_MIN, Y_MAX = -5.0, 5.0
 
 # 核心分隔
 SPLIT_Y = 0.0
-NORTH_DIV_X = [-2.5, 2.5]
-CROSS_DOORS_X = [-4.0, 0.0, 4.0]
+# 北区两道隔墙：从 ±2.5 外移到 ±2.8，
+# 让中间房间（room_c）的净宽从 4.85m 增加到 5.45m，
+# 家具靠墙摆放后中央仍有一条 ≥1.2m 的直通道。
+NORTH_DIV_X = [-2.8, 2.8]
+# 南北门洞：三个，居中分布。配合 DOOR_W=1.60，门中心间距足够，
+# 门框之间不会互相吃掉墙体。
+CROSS_DOORS_X = [-3.8, 0.0, 3.8]
 
 # ----------------------------------------------------------------------
 # 材质配色（RGBA，sRGB 线性近似）
@@ -387,153 +409,164 @@ def build() -> str:
 
     # ================================================================
     # 家具与装饰
+    # ----------------------------------------------------------------
+    # 布局硬约束（改家具前先看这里）：
+    #   1. 所有家具必须贴墙或靠角，房间中央留出 ≥1.2m 宽的空通道。
+    #   2. 任何家具不得遮挡门洞正前方 1.0m 的进出区域。
+    #   3. 每个语义地点（room_*/corridor/hall/home）周围 0.6m 内必须空。
+    #   4. 地面堆放物（crate/box）一律取消——它们散在房间中央，
+    #      是上一版 room_c 被截断、home 压桩的直接原因。
+    #
+    # 上一版的真实故障：crate_c1/c2/c3 三个箱子摆在 room_c 正中，
+    # 加上两侧货架，把房间从 x=-1.0 到 x=1.5 整片堵死，
+    # 机器人只能从一条 0.3m 的缝里过，代价地图上直接变成致命格。
     # ================================================================
-    parts.append("    <!-- ============ 家具与装饰 ============ -->\n")
+    parts.append("    <!-- ============ 家具与装饰（一律贴墙） ============ -->\n")
 
-    # ---- room_a：办公室（西北角） ----
-    # 办公桌（靠北墙）
-    parts.append(box("desk_a_top", -4.4, 3.6, 1.4, 0.7, 0.04, WOOD_MED, z_off=0.74))
-    parts.append(box("desk_a_leg_fl", -5.05, 3.28, 0.04, 0.04, 0.72, METAL_DARK, z_off=0.36))
-    parts.append(box("desk_a_leg_fr", -3.75, 3.28, 0.04, 0.04, 0.72, METAL_DARK, z_off=0.36))
-    parts.append(box("desk_a_leg_bl", -5.05, 3.92, 0.04, 0.04, 0.72, METAL_DARK, z_off=0.36))
-    parts.append(box("desk_a_leg_br", -3.75, 3.92, 0.04, 0.04, 0.72, METAL_DARK, z_off=0.36))
-    # 显示器
-    parts.append(box("monitor_a_screen", -4.4, 3.7, 0.55, 0.03, 0.35, BLACK, z_off=0.92))
-    parts.append(box("monitor_a_stand", -4.4, 3.65, 0.06, 0.12, 0.18, METAL_DARK, z_off=0.83))
+    # ---- room_a：办公室（西北，x<-2.8, y>0） ----
+    # 办公桌：贴西墙，沿 Y 方向摆放
+    parts.append(box("desk_a_top", -5.35, 3.4, 0.75, 1.50, 0.04, WOOD_MED, z_off=0.74))
+    parts.append(box("desk_a_leg_1", -5.65, 2.72, 0.05, 0.05, 0.72, METAL_DARK, z_off=0.36))
+    parts.append(box("desk_a_leg_2", -5.05, 2.72, 0.05, 0.05, 0.72, METAL_DARK, z_off=0.36))
+    parts.append(box("desk_a_leg_3", -5.65, 4.08, 0.05, 0.05, 0.72, METAL_DARK, z_off=0.36))
+    parts.append(box("desk_a_leg_4", -5.05, 4.08, 0.05, 0.05, 0.72, METAL_DARK, z_off=0.36))
+    # 显示器（屏幕朝东，面向房间）
+    parts.append(box("monitor_a_screen", -5.62, 3.4, 0.03, 0.60, 0.36, BLACK, z_off=0.95))
+    parts.append(box("monitor_a_stand", -5.60, 3.4, 0.10, 0.14, 0.16, METAL_DARK, z_off=0.82))
     # 键盘
-    parts.append(box("keyboard_a", -4.4, 3.45, 0.35, 0.12, 0.02, BLACK, z_off=0.75))
-    # 办公椅
-    parts.append(box("chair_a_seat", -4.4, 2.9, 0.45, 0.42, 0.06, FABRIC_GREY, z_off=0.48))
-    parts.append(box("chair_a_back", -4.4, 3.1, 0.45, 0.06, 0.50, FABRIC_GREY, z_off=0.73))
-    parts.append(cylinder("chair_a_pole", -4.4, 2.9, 0.03, 0.45, METAL_DARK, z_off=0.24))
-    parts.append(cylinder("chair_a_base", -4.4, 2.9, 0.22, 0.04, METAL_DARK, z_off=0.02))
-    # 书架（靠西墙）
-    parts.append(box("shelf_a_frame", -5.7, 3.5, 0.35, 1.6, 1.8, WOOD_DARK))
-    parts.append(box("shelf_a_s1", -5.7, 3.0, 0.33, 0.02, 1.76, WOOD_MED, z_off=0.45))
-    parts.append(box("shelf_a_s2", -5.7, 3.5, 0.33, 0.02, 1.76, WOOD_MED, z_off=0.90))
-    parts.append(box("shelf_a_s3", -5.7, 4.0, 0.33, 0.02, 1.76, WOOD_MED, z_off=1.35))
-    # 书架上的书（彩色小方块）
-    parts.append(box("book_a1", -5.6, 3.15, 0.20, 0.04, 0.28, "0.70 0.15 0.15 1", z_off=0.89))
-    parts.append(box("book_a2", -5.55, 3.15, 0.18, 0.04, 0.26, "0.15 0.30 0.60 1", z_off=0.89))
-    parts.append(box("book_a3", -5.75, 3.55, 0.22, 0.04, 0.25, "0.20 0.50 0.25 1", z_off=1.34))
-    # 文件柜
-    parts.append(box("filecab_a", -5.55, 2.4, 0.45, 0.50, 0.70, METAL_LIGHT))
-    parts.append(box("filecab_a_drawer", -5.55, 2.4, 0.40, 0.46, 0.02, METAL_DARK, z_off=0.36))
+    parts.append(box("keyboard_a", -5.20, 3.4, 0.14, 0.40, 0.02, BLACK, z_off=0.77))
+    # 办公椅（桌子东侧，靠墙一侧）
+    parts.append(box("chair_a_seat", -4.75, 3.4, 0.45, 0.45, 0.06, FABRIC_GREY, z_off=0.46))
+    parts.append(box("chair_a_back", -4.55, 3.4, 0.06, 0.45, 0.48, FABRIC_GREY, z_off=0.72))
+    parts.append(cylinder("chair_a_pole", -4.75, 3.4, 0.03, 0.44, METAL_DARK, z_off=0.23))
+    parts.append(cylinder("chair_a_base", -4.75, 3.4, 0.22, 0.04, METAL_DARK, z_off=0.02))
+    # 文件柜：贴北墙
+    parts.append(box("filecab_a", -4.2, 4.72, 1.00, 0.42, 1.20, METAL_LIGHT))
+    parts.append(box("filecab_a_line", -4.2, 4.50, 0.96, 0.02, 0.02, METAL_DARK, z_off=0.60))
+    # 盆栽（角上）
+    parts.append(cylinder("pot_a", -5.55, 4.55, 0.16, 0.32, POT_TERRA, z_off=0.16))
+    parts.append(cylinder("plant_a", -5.55, 4.55, 0.24, 0.42, PLANT_GREEN, z_off=0.53))
 
-    # ---- room_c：储物间（正北） ----
-    # 金属货架 ×2
-    parts.append(box("rack_c1", -1.2, 4.2, 0.40, 1.5, 2.0, METAL_LIGHT))
-    parts.append(box("rack_c1_s1", -1.2, 3.7, 0.38, 0.02, 1.46, METAL_DARK, z_off=0.50))
-    parts.append(box("rack_c1_s2", -1.2, 4.2, 0.38, 0.02, 1.46, METAL_DARK, z_off=1.00))
-    parts.append(box("rack_c1_s3", -1.2, 4.7, 0.38, 0.02, 1.46, METAL_DARK, z_off=1.50))
+    # ---- room_c：储物间（正北，-2.8<x<2.8, y>0） ----
+    #
+    # ★ 货架的 y 起点是关键，不能贴到门洞旁边。
+    #
+    # 上一版把货架放在 y∈[2.00,4.00]，而西隔墙 x=-2.8 的门洞是 y∈[0.90,2.80]。
+    # 货架离门洞中心线只有 0.18m，叠加 inflation_radius 0.35 之后，
+    # 门洞上沿 y≥1.7 全部变成致命格，实测全局代价地图：
+    #     y=1.1~1.6  可通行
+    #     y≥1.7      99 / OCC（被货架膨胀吃掉）
+    # 1.9m 的门实际只剩 0.5m 能走，机器人一旦走到 y=1.32 就被两侧高代价夹住，
+    # 全局规划返回空路径，move_base 一直发 lin=0，最后振荡中止。
+    # 表现极具欺骗性：定位完全正常（amcl 误差 0.2m），机器人就是不动。
+    #
+    # 现在把货架整体后移到 y∈[3.10,4.90]，
+    # 与门洞上沿 2.80 留出 0.30m 空隙，加膨胀后仍有余量，
+    # 门洞 y∈[0.90,2.80] 全宽可通行。
+    RACK_Y = 4.00      # 货架中心
+    RACK_LEN = 1.80    # 货架长度（y 方向）
+    parts.append(box("rack_c_left", -2.42, RACK_Y, 0.40, RACK_LEN, 2.00, METAL_LIGHT))
+    parts.append(box("rack_c_left_s1", -2.42, RACK_Y - 0.40, 0.38, 0.02, 1.90, METAL_DARK, z_off=0.55))
+    parts.append(box("rack_c_left_s2", -2.42, RACK_Y + 0.40, 0.38, 0.02, 1.90, METAL_DARK, z_off=1.05))
+    parts.append(box("rack_c_right", 2.42, RACK_Y, 0.40, RACK_LEN, 2.00, METAL_LIGHT))
+    parts.append(box("rack_c_right_s1", 2.42, RACK_Y - 0.40, 0.38, 0.02, 1.90, METAL_DARK, z_off=0.55))
+    parts.append(box("rack_c_right_s2", 2.42, RACK_Y + 0.40, 0.38, 0.02, 1.90, METAL_DARK, z_off=1.05))
+    # 货架上的储物箱（悬空在层板上，不占地面）
+    parts.append(box("box_c_l1", -2.42, RACK_Y - 0.20, 0.32, 0.36, 0.24, "0.75 0.65 0.40 1", z_off=0.68))
+    parts.append(box("box_c_l2", -2.42, RACK_Y + 0.20, 0.32, 0.36, 0.24, "0.60 0.60 0.65 1", z_off=1.18))
+    parts.append(box("box_c_r1", 2.42, RACK_Y - 0.20, 0.32, 0.36, 0.24, WOOD_LIGHT, z_off=0.68))
+    parts.append(box("box_c_r2", 2.42, RACK_Y + 0.20, 0.32, 0.36, 0.24, "0.70 0.55 0.35 1", z_off=1.18))
+    # 北墙货架（贴墙）
+    parts.append(box("rack_c_back", 0.0, 4.72, 2.20, 0.40, 2.00, METAL_LIGHT))
+    parts.append(box("rack_c_back_s1", 0.0, 4.72, 2.16, 0.38, 0.02, METAL_DARK, z_off=0.90))
+    # 地面只留角落一个箱子，不放中央
+    parts.append(box("crate_c_corner", 2.35, 1.15, 0.50, 0.50, 0.50, WOOD_LIGHT, yaw=0.25))
 
-    parts.append(box("rack_c2", 1.2, 4.2, 0.40, 1.5, 2.0, METAL_LIGHT))
-    parts.append(box("rack_c2_s1", 1.2, 3.7, 0.38, 0.02, 1.46, METAL_DARK, z_off=0.50))
-    parts.append(box("rack_c2_s2", 1.2, 4.2, 0.38, 0.02, 1.46, METAL_DARK, z_off=1.00))
+    # ---- room_b：客厅（东北，x>2.8, y>0） ----
+    # 沙发贴东墙
+    parts.append(box("sofa_b_seat", 5.30, 3.2, 0.85, 1.80, 0.42, FABRIC_BLUE, z_off=0.21))
+    parts.append(box("sofa_b_back", 5.68, 3.2, 0.12, 1.80, 0.50, FABRIC_BLUE, z_off=0.67))
+    parts.append(box("sofa_b_arm_l", 5.30, 2.32, 0.85, 0.12, 0.32, FABRIC_BLUE, z_off=0.58))
+    parts.append(box("sofa_b_arm_r", 5.30, 4.08, 0.85, 0.12, 0.32, FABRIC_BLUE, z_off=0.58))
+    parts.append(box("cushion_b1", 5.28, 2.80, 0.38, 0.40, 0.10, "0.30 0.40 0.60 1", z_off=0.47))
+    parts.append(box("cushion_b2", 5.28, 3.60, 0.38, 0.40, 0.10, "0.30 0.40 0.60 1", z_off=0.47))
+    # 茶几（沙发西侧，留出通道）
+    parts.append(box("table_b_top", 4.20, 3.2, 0.55, 0.95, 0.04, WOOD_DARK, z_off=0.42))
+    parts.append(box("table_b_leg_1", 4.00, 2.80, 0.05, 0.05, 0.40, METAL_DARK, z_off=0.20))
+    parts.append(box("table_b_leg_2", 4.40, 2.80, 0.05, 0.05, 0.40, METAL_DARK, z_off=0.20))
+    parts.append(box("table_b_leg_3", 4.00, 3.60, 0.05, 0.05, 0.40, METAL_DARK, z_off=0.20))
+    parts.append(box("table_b_leg_4", 4.40, 3.60, 0.05, 0.05, 0.40, METAL_DARK, z_off=0.20))
+    parts.append(box("magazine_b", 4.20, 3.05, 0.24, 0.18, 0.02, "0.80 0.20 0.20 1", z_off=0.45))
+    parts.append(cylinder("cup_b", 4.20, 3.40, 0.04, 0.10, WHITE, z_off=0.47))
+    # 电视柜：放在 room_b 内部西南侧，正对沙发。
+    # 【坑】原先贴南侧分隔墙 y≈0.42，正好堵死 x=3.8 那个门洞
+    # （门宽 1.6m 占 x∈[3.0,4.6]，柜子加膨胀后 x∈[3.28,5.32]），
+    # 等于把东北房间的入口封了。现在移到房间内部，离任何门都 >1.5m。
+    parts.append(box("tvstand_b", 3.35, 2.60, 0.40, 1.30, 0.50, WOOD_DARK))
+    parts.append(box("tv_b_screen", 3.18, 2.60, 0.04, 1.05, 0.60, BLACK, z_off=0.85))
+    parts.append(box("tv_b_stand", 3.24, 2.60, 0.06, 0.20, 0.15, METAL_DARK, z_off=0.60))
+    # 盆栽靠角
+    parts.append(cylinder("pot_b", 3.15, 4.55, 0.15, 0.30, POT_TERRA, z_off=0.15))
+    parts.append(cylinder("plant_b", 3.15, 4.55, 0.22, 0.40, PLANT_GREEN, z_off=0.50))
 
-    # 储物箱（货架上）
-    parts.append(box("box_c1", -1.3, 3.7, 0.35, 0.30, 0.25, "0.75 0.65 0.40 1", z_off=0.62))
-    parts.append(box("box_c2", -1.0, 4.2, 0.30, 0.35, 0.22, "0.60 0.60 0.65 1", z_off=0.62))
-    parts.append(box("box_c3", 1.1, 3.8, 0.32, 0.28, 0.24, WOOD_LIGHT, z_off=0.62))
-    parts.append(box("box_c4", 1.35, 4.5, 0.28, 0.32, 0.20, "0.70 0.55 0.35 1", z_off=1.12))
+    # ---- room_d：卧室（西南，x<-2.8, y<0） ----
+    # 房间可用范围：x ∈ [-5.9, -2.9]（宽 3.0m），y ∈ [-4.9, -0.1]（高 4.8m）
+    # 布局：床贴西墙北段，衣柜贴西墙南段，书桌贴南墙，
+    #       中央与东侧留出 ≥1.3m 的直通道，保证从 x=-3.8 门洞进来能走到房间深处。
+    # 床贴西北角
+    parts.append(box("bed_d_frame", -5.45, -1.60, 0.90, 1.90, 0.30, WOOD_DARK))
+    parts.append(box("bed_d_mattress", -5.45, -1.60, 0.82, 1.82, 0.22, WHITE, z_off=0.41))
+    parts.append(box("pillow_d1", -5.45, -1.05, 0.62, 0.32, 0.12, "0.90 0.90 0.92 1", z_off=0.58))
+    parts.append(box("pillow_d2", -5.45, -1.55, 0.62, 0.32, 0.12, "0.90 0.90 0.92 1", z_off=0.58))
+    parts.append(box("blanket_d", -5.45, -2.15, 0.84, 1.10, 0.08, FABRIC_GREEN, z_off=0.56))
+    # 床头柜贴北墙
+    parts.append(box("nightstand_d", -4.55, -0.45, 0.44, 0.42, 0.50, WOOD_MED))
+    parts.append(cylinder("lamp_d_base", -4.55, -0.45, 0.07, 0.03, METAL_DARK, z_off=0.515))
+    parts.append(cylinder("lamp_d_pole", -4.55, -0.45, 0.02, 0.24, METAL_DARK, z_off=0.65))
+    parts.append(cylinder("lamp_d_shade", -4.55, -0.45, 0.11, 0.16, "0.95 0.90 0.80 1", z_off=0.85))
+    # 衣柜贴西墙南段
+    parts.append(box("wardrobe_d", -5.68, -3.55, 0.44, 1.10, 2.00, WOOD_MED))
+    parts.append(box("wardrobe_d_line", -5.68, -3.55, 0.02, 1.06, 0.02, WOOD_DARK, z_off=1.00))
+    # 书桌贴南墙
+    parts.append(box("desk_d_top", -4.30, -4.68, 1.30, 0.50, 0.04, WOOD_LIGHT, z_off=0.74))
+    parts.append(box("desk_d_leg_1", -4.90, -4.68, 0.05, 0.44, 0.72, METAL_DARK, z_off=0.36))
+    parts.append(box("desk_d_leg_2", -3.70, -4.68, 0.05, 0.44, 0.72, METAL_DARK, z_off=0.36))
+    parts.append(box("chair_d_seat", -4.30, -3.95, 0.44, 0.44, 0.05, BLACK, z_off=0.46))
+    parts.append(box("chair_d_back", -4.30, -3.74, 0.44, 0.05, 0.44, BLACK, z_off=0.71))
 
-    # 地面堆放的箱子
-    parts.append(box("crate_c1", 0.2, 2.8, 0.50, 0.50, 0.50, WOOD_LIGHT, yaw=0.3))
-    parts.append(box("crate_c2", 1.0, 2.5, 0.45, 0.45, 0.45, WOOD_MED, yaw=-0.4))
-    parts.append(box("crate_c3", 0.7, 3.2, 0.40, 0.40, 0.40, "0.65 0.55 0.40 1", yaw=0.7))
+    # ---- 南区大厅（y<0） ----
+    # 装饰柱：移到墙边，不占中央。原 (0,-2)/(2.6,-2) 正好挡在
+    # 起点北上走廊的必经之路上。
+    parts.append(pillar("pillar_1", -2.60, -1.20))
+    parts.append(pillar("pillar_2", 2.60, -1.20))
 
-    # ---- room_b：客厅（东北角） ----
-    # L 型沙发
-    parts.append(box("sofa_b_seat", 4.5, 3.4, 1.8, 0.85, 0.42, FABRIC_BLUE, z_off=0.21))
-    parts.append(box("sofa_b_back", 4.5, 3.8, 1.8, 0.12, 0.45, FABRIC_BLUE, z_off=0.64))
-    parts.append(box("sofa_b_arm_l", 3.65, 3.4, 0.12, 0.85, 0.30, FABRIC_BLUE, z_off=0.57))
-    parts.append(box("sofa_b_arm_r", 5.35, 3.4, 0.12, 0.85, 0.30, FABRIC_BLUE, z_off=0.57))
-    # 沙发靠垫
-    parts.append(box("cushion_b1", 4.1, 3.45, 0.40, 0.38, 0.10, "0.30 0.40 0.60 1", z_off=0.47))
-    parts.append(box("cushion_b2", 4.9, 3.45, 0.40, 0.38, 0.10, "0.30 0.40 0.60 1", z_off=0.47))
-    # 茶几
-    parts.append(box("table_b_top", 4.5, 2.4, 0.90, 0.50, 0.04, WOOD_DARK, z_off=0.42))
-    parts.append(box("table_b_leg1", 4.1, 2.2, 0.04, 0.04, 0.40, METAL_DARK, z_off=0.20))
-    parts.append(box("table_b_leg2", 4.9, 2.2, 0.04, 0.04, 0.40, METAL_DARK, z_off=0.20))
-    parts.append(box("table_b_leg3", 4.1, 2.6, 0.04, 0.04, 0.40, METAL_DARK, z_off=0.20))
-    parts.append(box("table_b_leg4", 4.9, 2.6, 0.04, 0.04, 0.40, METAL_DARK, z_off=0.20))
-    # 茶几上的物品
-    parts.append(box("magazine_b", 4.4, 2.4, 0.22, 0.16, 0.02, "0.80 0.20 0.20 1", z_off=0.45))
-    parts.append(cylinder("cup_b", 4.7, 2.35, 0.04, 0.10, WHITE, z_off=0.47))
-    # 电视柜 + 电视
-    parts.append(box("tvstand_b", 5.5, 3.4, 0.40, 1.2, 0.50, WOOD_DARK))
-    parts.append(box("tv_b_screen", 5.5, 3.4, 0.04, 1.0, 0.60, BLACK, z_off=0.80))
-    parts.append(box("tv_b_stand", 5.5, 3.4, 0.06, 0.20, 0.15, METAL_DARK, z_off=0.57))
-    # 盆栽
-    parts.append(cylinder("pot_b", 3.5, 2.2, 0.15, 0.30, POT_TERRA, z_off=0.15))
-    parts.append(cylinder("plant_b", 3.5, 2.2, 0.20, 0.35, PLANT_GREEN, z_off=0.48))
+    # 接待台：贴东墙，不再横在大厅里
+    parts.append(box("reception_desk", 5.15, -1.20, 0.60, 1.60, 1.05, WOOD_DARK))
+    parts.append(box("reception_desk_top", 5.15, -1.20, 0.70, 1.70, 0.04, WOOD_MED, z_off=1.05))
 
-    # ---- room_d：卧室（西南角） ----
-    # 床架
-    parts.append(box("bed_d_frame", -4.5, -3.8, 2.0, 1.4, 0.30, WOOD_DARK))
-    # 床垫
-    parts.append(box("bed_d_mattress", -4.5, -3.8, 1.90, 1.30, 0.22, WHITE, z_off=0.41))
-    # 枕头
-    parts.append(box("pillow_d1", -5.1, -3.5, 0.40, 0.25, 0.12, "0.90 0.90 0.92 1", z_off=0.58))
-    parts.append(box("pillow_d2", -4.5, -3.5, 0.40, 0.25, 0.12, "0.90 0.90 0.92 1", z_off=0.58))
-    # 被子
-    parts.append(box("blanket_d", -4.2, -4.0, 1.30, 1.20, 0.08, FABRIC_GREEN, z_off=0.56))
-    # 床头柜
-    parts.append(box("nightstand_d", -5.55, -3.8, 0.45, 0.40, 0.50, WOOD_MED))
-    parts.append(box("nightstand_d_drawer", -5.55, -3.8, 0.40, 0.36, 0.02, WOOD_DARK, z_off=0.26))
-    # 台灯
-    parts.append(cylinder("lamp_d_base", -5.55, -3.8, 0.06, 0.03, METAL_DARK, z_off=0.515))
-    parts.append(cylinder("lamp_d_pole", -5.55, -3.8, 0.02, 0.25, METAL_DARK, z_off=0.64))
-    parts.append(cylinder("lamp_d_shade", -5.55, -3.8, 0.10, 0.15, "0.95 0.90 0.80 1", z_off=0.84))
-    # 衣柜（靠西墙）
-    parts.append(box("wardrobe_d", -5.7, -2.2, 0.55, 1.0, 2.0, WOOD_MED))
-    parts.append(box("wardrobe_d_door_l", -5.7, -2.5, 0.02, 0.48, 1.90, WOOD_DARK, z_off=1.0))
-    parts.append(box("wardrobe_d_door_r", -5.7, -1.9, 0.02, 0.48, 1.90, WOOD_DARK, z_off=1.0))
-    # 书桌（靠南墙）
-    parts.append(box("desk_d_top", -4.5, -1.5, 1.0, 0.50, 0.04, WOOD_LIGHT, z_off=0.74))
-    parts.append(box("desk_d_leg_fl", -4.95, -1.72, 0.04, 0.04, 0.72, METAL_DARK, z_off=0.36))
-    parts.append(box("desk_d_leg_fr", -4.05, -1.72, 0.04, 0.04, 0.72, METAL_DARK, z_off=0.36))
-    parts.append(box("desk_d_leg_bl", -4.95, -1.28, 0.04, 0.04, 0.72, METAL_DARK, z_off=0.36))
-    parts.append(box("desk_d_leg_br", -4.05, -1.28, 0.04, 0.04, 0.72, METAL_DARK, z_off=0.36))
-    # 椅子
-    parts.append(box("chair_d_seat", -4.5, -1.1, 0.42, 0.40, 0.05, BLACK, z_off=0.46))
-    parts.append(box("chair_d_back", -4.5, -0.9, 0.42, 0.05, 0.45, BLACK, z_off=0.71))
+    # 南墙装饰柜
+    parts.append(box("cabinet_south", -1.80, -4.70, 1.40, 0.45, 1.10, WOOD_MED))
 
-    # ---- 南区大厅 ----
-    # 装饰柱 ×2
-    parts.append(pillar("pillar_1", 0.0, -2.0))
-    parts.append(pillar("pillar_2", 2.6, -2.0))
-
-    # 接待台 / 服务台
-    parts.append(box("reception_desk", 3.0, -1.2, 1.6, 0.60, 1.05, WOOD_DARK))
-    parts.append(box("reception_desk_top", 3.0, -1.2, 1.70, 0.70, 0.04, WOOD_MED, z_off=1.05))
-
-    # 地面装饰箱
-    parts.append(box("box_south_1", 3.2, -3.6, 0.50, 0.50, 0.50, WOOD_LIGHT, yaw=0.3))
-    parts.append(box("box_south_2", -1.2, -4.2, 0.45, 0.45, 0.45, WOOD_MED, yaw=-0.5))
-
-    # 盆栽（大厅）
-    parts.append(cylinder("pot_hall_1", -0.8, -1.0, 0.18, 0.35, POT_TERRA, z_off=0.175))
-    parts.append(cylinder("plant_hall_1", -0.8, -1.0, 0.25, 0.45, PLANT_GREEN, z_off=0.575))
-    parts.append(cylinder("pot_hall_2", 4.5, -3.5, 0.15, 0.30, POT_TERRA, z_off=0.15))
-    parts.append(cylinder("plant_hall_2", 4.5, -3.5, 0.22, 0.40, PLANT_GREEN, z_off=0.50))
+    # 盆栽放角落
+    parts.append(cylinder("pot_hall_1", -5.35, -1.30, 0.18, 0.35, POT_TERRA, z_off=0.175))
+    parts.append(cylinder("plant_hall_1", -5.35, -1.30, 0.25, 0.45, PLANT_GREEN, z_off=0.575))
+    parts.append(cylinder("pot_hall_2", 5.35, -4.55, 0.15, 0.30, POT_TERRA, z_off=0.15))
+    parts.append(cylinder("plant_hall_2", 5.35, -4.55, 0.22, 0.40, PLANT_GREEN, z_off=0.50))
 
     # ---- 充电桩（home 点） ----
-    # 底座平台
-    parts.append(cylinder("charger_base", 0.8, -3.6, 0.30, 0.06, METAL_DARK, z_off=0.03))
-    # 充电柱
-    parts.append(cylinder("charger_pillar", 0.8, -3.6, 0.12, 0.80, METAL_LIGHT, z_off=0.46))
-    # 顶部
-    parts.append(cylinder("charger_top", 0.8, -3.6, 0.18, 0.08, METAL_DARK, z_off=0.90))
-    # 指示灯（绿色 = 可用）
-    parts.append(cylinder("charger_led", 0.8, -3.48, 0.03, 0.04, GREEN_INDICATOR, z_off=0.70))
-    # 充电接口
-    parts.append(box("charger_port", 0.8, -3.45, 0.06, 0.04, 0.08, BLACK, z_off=0.55))
-
-    # ---- 走廊装饰 ----
-    # 走廊墙边装饰条（踢脚线已在墙函数中生成）
-    # 走廊地面标识（home 点标记）
-    parts.append(cylinder("floor_marker_home", 0.8, -3.6, 0.35, 0.01, "0.20 0.60 0.30 1", z_off=0.012))
+    # 【关键】充电桩整体挪到西南角，远离机器人出生位与主通道。
+    # 上一版放在 (0.80,-3.60)，而 home 起点就在 (0,-3.5) 附近，
+    # 桩体半径 0.30m + 膨胀 0.42m 直接把起点和北上通道一起吃掉了。
+    # 现在放到 (-4.80,-4.30)：角落位置，不影响任何语义地点之间的通路。
+    CHARGER_X, CHARGER_Y = -4.80, -4.30
+    parts.append(cylinder("charger_base", CHARGER_X, CHARGER_Y, 0.30, 0.06, METAL_DARK, z_off=0.03))
+    parts.append(cylinder("charger_pillar", CHARGER_X, CHARGER_Y, 0.12, 0.80, METAL_LIGHT, z_off=0.46))
+    parts.append(cylinder("charger_top", CHARGER_X, CHARGER_Y, 0.18, 0.08, METAL_DARK, z_off=0.90))
+    parts.append(cylinder("charger_led", CHARGER_X, CHARGER_Y + 0.12, 0.03, 0.04, GREEN_INDICATOR, z_off=0.70))
+    parts.append(box("charger_port", CHARGER_X, CHARGER_Y + 0.15, 0.06, 0.04, 0.08, BLACK, z_off=0.55))
+    # 地面标识（0.01m 高，属装饰，不参与避障）
+    parts.append(cylinder("floor_marker_home", CHARGER_X, CHARGER_Y, 0.35, 0.01,
+                          "0.20 0.60 0.30 1", z_off=0.012))
 
     parts.append("""  </world>
 </sdf>

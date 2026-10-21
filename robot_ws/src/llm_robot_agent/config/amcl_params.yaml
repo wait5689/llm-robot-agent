@@ -22,12 +22,27 @@
 
 # ---- 坐标系 ----
 odom_frame_id: odom
-base_frame_id: base_link
+# ★ 必须是 base_footprint，与 URDF 里 diff_drive 插件的 robotBaseFrame 完全一致。
+#   原值 base_link 也能跑，但 base_link 距地面 0.10m，
+#   AMCL 在 scan_time 做 TF 查询时多一跳变换，
+#   叠加下面的 transform_tolerance 问题后，整帧扫描会被静默丢弃。
+base_frame_id: base_footprint
 global_frame_id: map
 
 # ---- TF 与发布 ----
 tf_broadcast: true
-transform_tolerance: 1.0
+
+# ★ transform_tolerance 从 1.0 降到 0.25。
+#   这个参数的含义是「map->odom 变换的时间戳可以超前当前时刻多久」。
+#   设成 1.0 时，AMCL 广播的 map->odom 带 1 秒未来时间戳；
+#   而 AMCL 自己在处理下一帧扫描时用的又是 Python2 风格的 tf 查询，
+#   在仿真时间与真实时间有抖动时容易出现 "extrapolation into the future"，
+#   一旦查询抛异常，AMCL 会直接跳过这一帧扫描且**不打印任何错误**。
+#   表现就是：/amcl_pose 仍在按里程计积分地更新，粒子云也还在，
+#   但 map->odom 再也不修正，定位缓慢漂移，
+#   最后 move_base 以为到了而实际差了数米（action 还报 SUCCEEDED）。
+#   这是本项目最隐蔽的一个故障，降低该值后定位恢复连续修正。
+transform_tolerance: 0.25
 
 # ---- 里程计模型（差速轮） ----
 odom_model_type: diff
@@ -43,25 +58,57 @@ laser_max_range: 9.0
 laser_min_range: 0.15
 laser_likelihood_max_dist: 2.0
 
+# ★ 参与匹配的光束数从默认 30 提到 90。
+#   本世界南北房间近似对称（左右各一间），只用 30 条光束时，
+#   likelihood_field 很容易在镜像位置找到同样的似然，
+#   表现为粒子云突然「跳」到对称房间（定位跳变）。
+#   光束加密后对称歧义显著减少，代价是少量 CPU。
+laser_max_beams: 90
+
 # ---- 粒子滤波 ----
 min_particles: 500
 max_particles: 3000
 kld_err: 0.02
 kld_z: 0.99
 
-# 更新阈值：只有机器人移动/转动超过门限才更新，省 CPU
-update_min_d: 0.10
-update_min_a: 0.15
+# ★ 更新阈值调小：原 0.10m / 0.15rad 在慢速爬行时太迟钝。
+#   仿真里机器人速度只有 0.30 m/s，控制器 15Hz，
+#   0.10m 相当于每 0.33s 才更新一次定位，
+#   期间纯靠里程计外推，累积起来就是米级误差。
+update_min_d: 0.04
+update_min_a: 0.06
 resample_interval: 1
 
 # 恢复行为：全局重定位（"机器人丢失"时使用）
 recovery_alpha_slow: 0.001
 recovery_alpha_fast: 0.1
 
+# ★ 让 AMCL 启动时直接采用下面的 initial_pose_* 参数，
+#   而不是等外部节点发 /initialpose。
+#   原方案依赖 initial_pose.py 持续发 30 秒，一旦时序错开，
+#   AMCL 就带着粒子云撒满全图的默认状态空转。
+set_initial_pose: true
+
+# 位姿周期性保存，便于恢复
+save_pose_rate: 0.5
+
+
 # 初始位姿不确定性：给一个较大的协方差，
 # 让 AMCL 在收到 initial_pose 后能自行收敛，而不是死锁在初值上
-initial_pose:
-  x: 0.0
-  y: 0.0
-  z: 0.0
-  yaw: 0.0
+#
+# 注意：这里原来写成一个嵌套字典
+#   initial_pose: {x:..., y:..., z:..., yaw:...}
+# 是错的。AMCL 的参数是三个「扁平标量」
+#   initial_pose_x / initial_pose_y / initial_pose_a
+# 而且没有 initial_pose_z 这个参数。写成嵌套字典时 rosparam 会
+# 生成 /amcl/initial_pose/{x,y,z,yaw} 这样的命名空间参数，
+# AMCL 读不到 initial_pose_x，加上 initial_pose_a 缺失，
+# 结果是它能收到 scan、能算出 /amcl_pose，
+# 但 tf_broadcast 的 map->odom 始终不发布，
+# move_base 就一直卡在 "target_frame map does not exist"。
+#
+# initial_pose_* 的实际取值由 navigation.launch 用 <param> 覆盖，
+# 与 config/locations.yaml 的 home 保持一致（0.00, -3.40, yaw 1.5708）。
+initial_pose_x: 0.0
+initial_pose_y: -3.4
+initial_pose_a: 1.5708

@@ -5,22 +5,64 @@
 # 因此这里**不要**写 `global_costmap:` / `local_costmap:` 顶层键，
 # 否则参数会变成 /move_base/global_costmap/global_costmap/xxx 而永远不生效。
 #
-# 机器人几何以 urdf/advanced_robot.urdf 为准：
-#   base_link 尺寸 0.5 × 0.35 m —— footprint 按此再加 2 cm 安全余量
+# 机器人几何以 urdf/advanced_robot.urdf (v3) 为准：
+#   底盘 0.52 x 0.42 m，含轮外廓约 0.60 x 0.52 m
+#   footprint 取 0.56 x 0.46（底盘外扩 2cm），内切半径 0.23 m
 # =========================================================
 
-footprint: [[-0.27, -0.20], [-0.27, 0.20], [0.27, 0.20], [0.27, -0.20]]
+# 三处 robot base frame 必须统一：URDF diff_drive 的 robotBaseFrame、
+# AMCL 的 base_frame_id、这里。任何一处写成 base_link 都会多一跳 TF。
+robot_base_frame: base_footprint
 
-# 膨胀半径必须 > 机器人内切半径 + 余量。
-# 设得过大会把门洞封死：本项目门宽 1.10 m，膨胀 0.42 m 后净空仍有 0.26 m。
-inflation_radius: 0.42
-cost_scaling_factor: 4.0
+footprint: [[-0.28, -0.23], [-0.28, 0.23], [0.28, 0.23], [0.28, -0.23]]
+
+# 膨胀半径必须 > 机器人内切半径 + 安全余量，但不能大到把门封死。
+#
+# 上一版把这里设为 0.42，而门宽当时只有 1.10：
+#   可用净空 = 1.10 - 2*0.42 = 0.26 m < 机器人内切 0.32 m
+#   → 门在代价地图上等价于完全封死，全局规划必然
+#     "a valid plan could not be found"，机器人原地打转。
+#
+# v3 两个数一起调好了：
+#   门宽改 1.60 m（gen_world.py 的 DOOR_W）
+#   膨胀降到 0.35 m
+#   → 可用净空 = 1.60 - 2*0.35 = 0.90 m
+#   → 内切半径 0.23 m，余量 0.67 m，既安全又能通过。
+#
+# 注意：inflation 不是「越小越好」。它同时决定机器人离墙多远，
+# 设太小会贴墙擦碰，设太大则门洞不通。改任何一边都要重算上面这条式子。
+inflation_radius: 0.35
+cost_scaling_factor: 3.0
 
 obstacle_layer:
   enabled: true
   combination_method: 1
-  track_unknown_space: true
+
+  # ★ 这里必须是 false，且这一行是整个项目最难找的坑之一。
+  #
+  # 本文件同时被加载进 global_costmap 和 local_costmap 两个命名空间。
+  #
+  # 若 obstacle_layer/track_unknown_space = true：
+  #   - 激光没扫到过的格子保持 NO_INFORMATION(-1)
+  #   - 局部代价地图只挂 obstacle_layer（无静态图），
+  #     所以初始时几乎整张图都是 -1
+  #   - rotate_recovery 检查 footprint 时看到 -1，判「可能碰撞」：
+  #       Rotate recovery can't rotate in place because
+  #       there is a potential collision. Cost: -1.00
+  #   - 所有恢复行为连锁失效 → 目标 ABORT
+  #
+  # 注意 costmap 顶层的 track_unknown_space 管的是「栅格默认值」，
+  # obstacle_layer 自己这个管的是「图层输出」，两处独立，都要设。
+  # 顶层那条已经在 local_costmap_params.yaml 里设成 false，
+  # 这里补上图层这条。
+  #
+  # 全局图不需要 -1 语义：地图边界外已由静态层的灰色区域（205）表达，
+  # 静态层会把未知格保持为 -1，顶层 track_unknown_space: true 足够。
+  track_unknown_space: false
+
   obstacle_range: 3.0
+  # raytrace 必须 >= obstacle_range，否则标记过的障碍清不掉，
+  # 会留下永久「鬼影」，机器人在门口反复触发恢复行为。
   raytrace_range: 3.5
   observation_sources: scan
   scan:

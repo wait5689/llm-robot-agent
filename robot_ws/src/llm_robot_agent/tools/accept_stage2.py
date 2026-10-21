@@ -285,7 +285,13 @@ def main() -> int:
             d = r["detail"]
             if isinstance(d, list):
                 for row in d:
-                    if "path_len_m" in row:
+                    # detail 列表里可能是 dict（结构化结果），也可能是纯字符串
+                    # （某些检查直接 append 人类可读行）。先判类型再取键，
+                    # 否则行是 str 时 row.get(...) 会抛 AttributeError，
+                    # 把「某地点不可达」这个真实结论盖成一次崩溃。
+                    if not isinstance(row, dict):
+                        print(f"        {row}")
+                    elif "path_len_m" in row:
                         print(f"        {row['name']:<10s} 路径 {row['path_len_m']:6.2f} m "
                               f"(直线 {row['straight_m']:5.2f} m, 绕行 {row['detour_ratio']:.2f}x)")
                     elif row.get("reachable") is False:

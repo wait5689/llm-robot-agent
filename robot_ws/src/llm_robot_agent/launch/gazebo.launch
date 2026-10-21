@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <!--
   阶段一验收：只启动仿真世界 + 机器人与差分驱动
-  验证目标：在 Gazebo 里看到 wheeltec/advanced 机器人，能用 teleop 键盘开动它
+  验证目标：在 Gazebo 里看到机器人，能用 teleop 键盘开动它
 
   用法：
     roslaunch llm_robot_agent gazebo.launch
@@ -11,8 +11,23 @@
   <arg name="world" default="$(find llm_robot_agent)/worlds/complex_indoor.world"/>
   <arg name="model" default="$(find llm_robot_agent)/urdf/advanced_robot.urdf"/>
   <arg name="x" default="0.0"/>
-  <arg name="y" default="-3.0"/>
-  <arg name="z" default="0.15"/>
+  <arg name="y" default="-3.4"/>
+  <!-- z 取 0.05：URDF 以 base_footprint 为根，轮子最低点在地面，
+       留 5cm 余量避免出生瞬间与地面穿透抖动。 -->
+  <arg name="z" default="0.05"/>
+
+  <!-- ★ yaw 必须可传参，不能硬编码。
+       曾经的 bug：spawn_model 的 args 里写死 "-Y 0"，
+       于是 navigation.launch 传进来的 yaw=1.5708 被完全丢弃，
+       机器人实际朝 +X（东），而 AMCL 的 initial_pose_a=1.5708
+       让粒子群以为机器人朝 +Y（北）。
+       后果：定位航向从一开始就差 90°，
+            激光匹配永远对不上，粒子云收敛到错误位置，
+            move_base 把「已经到达」判成成功，机器人实际停在别处。
+       这类"看似成功实则错位"的故障最难查，
+       因为它不报任何错误，action 状态就是 SUCCEEDED。 -->
+  <arg name="yaw" default="1.5708"/>
+
   <arg name="gui" default="true"/>
 
   <arg name="use_sim_time" default="true"/>
@@ -31,13 +46,32 @@
   <!-- 机器人描述 -->
   <param name="robot_description" textfile="$(arg model)"/>
 
-  <!-- 生成机器人 -->
+  <!-- 生成机器人：-Y 传 $(arg yaw) -->
   <node name="spawn_robot" pkg="gazebo_ros" type="spawn_model"
-        args="-urdf -param robot_description -model robot -x $(arg x) -y $(arg y) -z $(arg z) -Y 0"
+        args="-urdf -param robot_description -model robot -x $(arg x) -y $(arg y) -z $(arg z) -Y $(arg yaw)"
         output="screen"/>
 
+  <!--
+    轮子 TF 的发布权只能有一个来源。
+
+    URDF 里 diff_drive 插件开了 publishWheelTF=true，
+    它会把 left_wheel/right_wheel 相对 base_link 的 TF 广播出去；
+    同时 joint_state_publisher 把关节角发给 robot_state_publisher，
+    后者也会广播同一对 TF。两个源同时间戳打架，
+    日志会刷满：
+      TF_REPEATED_DATA ignoring data with redundant timestamp
+    虽然不致命，但会淹没真正有用的报错，且 TF 抖动会拖慢 AMCL。
+
+    这里保留 robot_state_publisher（它有完整的 TF 树），
+    把插件的 publishWheelTF 关掉（见 URDF）。
+  -->
   <node name="joint_state_publisher" pkg="joint_state_publisher" type="joint_state_publisher">
     <param name="use_gui" value="false"/>
+    <!-- 只发布非固定关节，轮子交给插件也可；
+         这里显式列出，避免空消息导致警告 -->
+    <rosparam param="source_list">[]</rosparam>
   </node>
-  <node name="robot_state_publisher" pkg="robot_state_publisher" type="robot_state_publisher"/>
+  <node name="robot_state_publisher" pkg="robot_state_publisher" type="robot_state_publisher">
+    <param name="publish_frequency" value="30.0"/>
+  </node>
 </launch>

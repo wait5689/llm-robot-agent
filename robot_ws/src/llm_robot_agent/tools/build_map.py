@@ -112,9 +112,48 @@ def rasterize(obstacles, resolution: float,
     return grid, x0, y0
 
 
+def grid_to_pixel(v: int) -> int:
+    """把内部占据值（0/100/205）换成 ROS map 的 PGM 像素亮度。
+
+    ROS map_server 用 occupied = (255 - pixel) / 255 还原占据概率，
+    配合 occupied_thresh 0.65 / free_thresh 0.196：
+        占据 (occ=1.00)  -> pixel 0    （黑）
+        自由 (occ=0.00)  -> pixel 254  （白）
+        未知 (occ=0.80)  -> pixel 205  （灰）  ← ROS 里 >=0.65 仍判为占据，
+                                                  所以未知要单独用 205 表示
+
+    grid 里的 0/100/205 是「百分比占据」语义，不能直接写进 PGM；
+    直接写会让自由区变成纯黑（占据）、墙变成灰白（自由），地图整体反向。
+    """
+    return {
+        0: 254,       # 自由 -> 白
+        100: 0,       # 占据 -> 黑
+        205: 205,     # 未知 -> 灰
+    }.get(v, 205 if v > 100 else 254)
+
+
 def write_pgm(path: str, grid) -> None:
-    """写二进制 PGM（P5）。注意 PGM 行序是「从上到下」，
-    而 ROS 的 map 原点在**左下角**，所以写入时要垂直翻转。"""
+    """写二进制 PGM（P5）。
+
+    注意两件事，任何一件做错都会让整张地图黑白颠倒：
+
+    1) PGM 行序是「从上到下」，而 ROS 的 map 原点在**左下角**，
+       所以写入时要垂直翻转。
+
+    2) ★ 内部 grid 用的是「0=自由 / 100=占据 / 205=未知」这种
+       "占据概率"语义，但 PGM 像素是「亮度」语义，两者正好相反：
+           PGM 0   （黑） = 占据
+           PGM 254/255（白） = 自由
+           PGM 205 （灰） = 未知
+       ROS map_server 读图时是按 (255 - pixel) / 255 还原占据概率的，
+       所以这里必须做 255- 反转。原实现直接把 grid 的 0/100 写进
+       PGM，导致自由空间被写成黑色（= 占据），墙被写成白色（= 自由），
+       整张地图完全反向：
+         - AMCL 认为机器人在墙里，粒子云乱飞
+         - move_base 全局代价值到处是 100/0 反转，
+           任何目标点都 "a valid plan could not be found"
+       PGM 只有 0 和 100 两种值、没有 255，就是漏了这一步的特征。
+    """
     h = len(grid)
     w = len(grid[0])
     with open(path, "wb") as f:
@@ -124,7 +163,7 @@ def write_pgm(path: str, grid) -> None:
         f.write(b"255\n")
         buf = bytearray()
         for j in range(h - 1, -1, -1):      # 翻转：从上到下
-            buf.extend(bytes(grid[j]))
+            buf.extend(bytes(grid_to_pixel(v) for v in grid[j]))
         f.write(bytes(buf))
 
 

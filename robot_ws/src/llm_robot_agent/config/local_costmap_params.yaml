@@ -15,18 +15,41 @@
 
 local_costmap:
   global_frame: odom
-  robot_base_frame: base_link
+  # 与 URDF 里 diff_drive 的 robotBaseFrame 一致，避免多一跳 TF
+  robot_base_frame: base_footprint
 
   update_frequency: 10.0
   publish_frequency: 5.0
 
-  static_map: false
+  # static_map 是 Hydro 之前的老参数，给了 plugins 之后不再生效，
+  # 留着只会打印一条 unused 警告，这里显式删除。
   rolling_window: true
   width: 5.0
   height: 5.0
   resolution: 0.05
 
-  transform_tolerance: 0.5
+  # 与 AMCL 的 0.25 对齐。原来写 0.5，比定位输出宽松一倍，
+  # 会让局部规划拿到过期的机器人位姿。
+  transform_tolerance: 0.25
+
+  # ★ 本文件最关键的一处：必须是 false。
+  #
+  # 局部代价地图只挂 obstacle_layer（不挂 static_layer），
+  # 意味着除了激光扫到过的格子，其余全是「未观测」。
+  # 一旦 track_unknown_space 为 true：
+  #   - 未观测格代价 = -1（NO_INFORMATION）
+  #   - rotate_recovery 检查 footprint 时看到 -1，
+  #     判定「可能碰撞」，直接拒绝原地旋转，报
+  #       Rotate recovery can't rotate in place because
+  #       there is a potential collision. Cost: -1.00
+  #   - 于是 move_base 的所有恢复行为全部失效
+  #   - 最终 ABORT："a valid plan could not be found
+  #     even after executing all recovery behaviors"
+  #
+  # 这个故障的现象很有欺骗性：机器人在门口稍微蹭一下就开始
+  # 振荡 → 触发恢复 → 恢复因 unknown 而全废 → 直接放弃。
+  # 日志里看不到任何「障碍物」提示，只有 -1.00。
+  track_unknown_space: false
 
   # 局部图不加载静态地图（否则会把已建图的墙当成新障碍重复膨胀）
   static_layer:
