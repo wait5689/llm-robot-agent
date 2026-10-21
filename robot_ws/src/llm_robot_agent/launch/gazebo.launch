@@ -10,8 +10,14 @@
 <launch>
   <arg name="world" default="$(find llm_robot_agent)/worlds/complex_indoor.world"/>
   <arg name="model" default="$(find llm_robot_agent)/urdf/advanced_robot.urdf"/>
-  <arg name="x" default="0.0"/>
-  <arg name="y" default="-3.4"/>
+  <!-- ★ 生成位姿必须与 config/locations.yaml 的 home 完全一致。
+       当前 home = (-0.40, -3.20) yaw=1.5708，净空 0.96m。
+       曾经的 home (0, -3.40) 离 charger_base 只有 0.52m，
+       低于理论下限 0.712 —— 机器人一生成就处在膨胀层高代价区，
+       局部规划器每周期都认为「所有轨迹都会碰撞」，输出恒零速，
+       结果是所有目标都失败、机器人一步不动、日志无任何报错。 -->
+  <arg name="x" default="0.30"/>
+  <arg name="y" default="-2.55"/>
   <!-- z 取 0.05：URDF 以 base_footprint 为根，轮子最低点在地面，
        留 5cm 余量避免出生瞬间与地面穿透抖动。 -->
   <arg name="z" default="0.05"/>

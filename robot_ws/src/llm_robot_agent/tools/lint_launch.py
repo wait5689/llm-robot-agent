@@ -278,16 +278,110 @@ def check_nav_configs(issues: List[Issue]) -> None:
         m = re.search(r"^\s*inflation_radius:\s*([\d.]+)", text, re.M)
         if m:
             inflate = float(m.group(1))
-            wtext = open(world_p, "r", encoding="utf-8").read()
-            widths = [float(v) for v in
-                      re.findall(r"<size>\s*([\d.]+)\s+0\.15\s+1\.0\s*</size>", wtext)]
-            # 门洞通过 lint 反向推断：gen_world 的门宽写死 1.10
-            door_w = 1.10
-            if inflate * 2 >= door_w:
+            # 门宽不再写死：从 tools/gen_world.py 读 DOOR_W。
+            # 之前这里硬编码 1.10，门宽改成 1.90 后校验就成了摆设，
+            # 会让「膨胀把门封死」这个真实故障漏过去。
+            door_w = None
+            gen_p = os.path.join(PKG_ROOT, "tools", "gen_world.py")
+            if os.path.exists(gen_p):
+                gtext = open(gen_p, "r", encoding="utf-8").read()
+                gm = re.search(r"^DOOR_W\s*=\s*([\d.]+)", gtext, re.M)
+                if gm:
+                    door_w = float(gm.group(1))
+            if door_w is None:
+                issues.append(Issue(
+                    "warning", _rel(common_p),
+                    "无法从 tools/gen_world.py 读到 DOOR_W，跳过门宽匹配校验"))
+            elif inflate * 2 >= door_w:
                 issues.append(Issue(
                     "error", _rel(common_p),
                     f"inflation_radius={inflate} 过大：2×{inflate} ≥ 门宽 {door_w}，"
                     f"所有门洞会被封死，机器人无法进房间"))
+            else:
+                # 留一点余量提示：实际可通行宽度小于 0.6m 时对 DWA 很不友好
+                usable = door_w - 2 * inflate
+                if usable < 0.60:
+                    issues.append(Issue(
+                        "warning", _rel(common_p),
+                        f"门洞可用宽度仅 {usable:.2f}m（= {door_w} - 2×{inflate}），"
+                        f"小于 0.60m 时局部规划器容易在门口反复犹豫"))
+
+    # ★ 规划器选择与参数文件必须一致
+    #
+    # 这是本项目踩过的最贵的一个坑：
+    # navigation.launch 加载了 dwa_local_planner_params.yaml，
+    # 但 move_base_params.yaml 里 base_local_planner 指的是
+    # TrajectoryPlannerROS。结果 TPR 一个参数都没读到，全部走默认值，
+    # 而 TPR 默认 holonomic_robot = true，它会输出 linear.y，
+    # 差速轮不吃横向分量 —— 机器人一步不动，8 次恢复行为全部无效，
+    # 日志里没有任何报错。8 个目标全失败但看不出原因。
+    #
+    # 所以这里强制把「选中的规划器」和「launch 加载的参数文件」对齐检查。
+    mb_p = os.path.join(cfg, "move_base_params.yaml")
+    nav_launch_p = os.path.join(PKG_ROOT, "launch", "navigation.launch")
+    if os.path.exists(mb_p) and os.path.exists(nav_launch_p):
+        mb_text = open(mb_p, "r", encoding="utf-8").read()
+        pm = re.search(r"^\s*base_local_planner\s*:\s*[\"']?([^\"'\n#]+)",
+                       mb_text, re.M)
+        if not pm:
+            issues.append(Issue(
+                "error", _rel(mb_p),
+                "缺少 base_local_planner，move_base 会回退到默认规划器"))
+        else:
+            planner = pm.group(1).strip()
+            # 插件类名 -> 预期的参数文件顶层键
+            if "DWAPlannerROS" in planner:
+                want_file = "dwa_local_planner_params.yaml"
+                want_key = "DWAPlannerROS"
+            elif "TrajectoryPlannerROS" in planner:
+                want_file = "base_local_planner_params.yaml"
+                want_key = "TrajectoryPlannerROS"
+            else:
+                want_file, want_key = None, None
+
+            if want_file:
+                launch_text = open(nav_launch_p, "r", encoding="utf-8").read()
+                # 先去掉 XML 块注释，再找实际生效的 rosparam 行。
+                # 必须去注释：本项目 launch 里刻意保留了被注释掉的备选
+                # planner 参数行作说明，不剔除会误判成「加载了两个」。
+                uncommented = re.sub(r"<!--.*?-->", "", launch_text, flags=re.S)
+                active = []
+                for line in uncommented.splitlines():
+                    if re.search(
+                            r"rosparam.*config/(base_local_planner_params|dwa_local_planner_params)\.yaml",
+                            line):
+                        fm = re.search(
+                            r"config/(base_local_planner_params|dwa_local_planner_params)\.yaml",
+                            line)
+                        active.append(fm.group(1) + ".yaml")
+
+                if want_file not in active:
+                    issues.append(Issue(
+                        "error", _rel(nav_launch_p),
+                        f"move_base_params.yaml 选了 {planner}，"
+                        f"但 launch 没有加载 {want_file}"
+                        f"（实际加载：{active or '无'}）。"
+                        f"规划器会拿不到任何参数而全部走默认值，"
+                        f"典型表现是 holonomic_robot 默认为 true、"
+                        f"输出 linear.y，差速轮不响应 → 机器人一步不动且无报错"))
+                for other in active:
+                    if other != want_file:
+                        issues.append(Issue(
+                            "warning", _rel(nav_launch_p),
+                            f"同时加载了 {other}，与选中的规划器 {planner} 不匹配，"
+                            f"该文件不会起作用（可保留作对照，但别指望它生效）"))
+
+                # 参数文件里必须有对应顶层键
+                pf = os.path.join(cfg, want_file)
+                if os.path.exists(pf):
+                    if want_key not in _yaml_top_keys(pf):
+                        issues.append(Issue(
+                            "error", _rel(pf),
+                            f"缺少顶层键 '{want_key}:'，"
+                            f"所选规划器 {planner} 将读不到参数"))
+                else:
+                    issues.append(Issue(
+                        "error", "config", f"缺少 {want_file}"))
 
     # 到达容差一致性
     agent_p = os.path.join(cfg, "agent.yaml")

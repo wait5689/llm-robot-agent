@@ -1,6 +1,6 @@
 image: indoor.pgm
 resolution: 0.05
-origin: [-7.0750, -6.0750, 0.000000]
+origin: [-7.0950, -6.0950, 0.000000]
 negate: 0
 occupied_thresh: 0.65
 free_thresh: 0.196

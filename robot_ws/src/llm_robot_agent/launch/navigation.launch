@@ -41,17 +41,19 @@
   <arg name="use_rviz" default="true"/>
   <arg name="gui" default="true"/>
 
-  <!-- 机器人生成位姿：必须与 config/locations.yaml 的 home 一致。
-       home 点位于南区中央空地 (0.00,-3.40)，四面净空 >1.5m。
-       充电桩本体已移到西南角 (-4.80,-4.30)，不再与起点冲突。 -->
-  <arg name="x" default="0.0"/>
-  <arg name="y" default="-3.4"/>
+  <!-- 机器人生成位姿：必须与 config/locations.yaml 的 home 完全一致。
+       home = (-0.40, -3.20) yaw=1.5708，净空 0.96m（最近障碍 charger_base）。
+       曾经的 home (0,-3.40) 离 charger_base 只有 0.52m，
+       低于理论下限 0.712m，机器人一生成就在膨胀层高代价区，
+       局部规划器输出恒零速，所有目标失败且无任何报错。 -->
+  <arg name="x" default="0.30"/>
+  <arg name="y" default="-2.55"/>
   <arg name="z" default="0.05"/>
   <arg name="yaw" default="1.5708"/>
 
   <!-- 初始位姿（喂给 AMCL），必须与生成位姿相同 -->
-  <arg name="init_pose_x" default="0.0"/>
-  <arg name="init_pose_y" default="-3.4"/>
+  <arg name="init_pose_x" default="0.30"/>
+  <arg name="init_pose_y" default="-2.55"/>
   <arg name="init_pose_yaw" default="1.5708"/>
 
   <param name="/use_sim_time" value="true"/>
@@ -115,16 +117,23 @@
 
     <!--
       局部规划器参数。
-      当前用 DWAPlannerROS（文件内是 DWAPlannerROS: 顶层键，
-      由 move_base_params.yaml 的 base_local_planner 选中）。
+      必须与 move_base_params.yaml 里 base_local_planner 的取值严格对应，
+      否则规划器会拿不到任何参数、全部走默认值。
 
-      旧的 base_local_planner_params.yaml 保留在 config/ 下作对照，
-      不再加载 —— 它的 TrajectoryPlannerROS 在「机器人背对目标」时
-      会持续输出零速而死锁（详见 move_base_params.yaml 的说明）。
-      如需回退，把下面这行换成 base_local_planner_params.yaml，
-      并同步改 move_base_params.yaml 的 base_local_planner。
+      ★ 这里曾经踩过一个坑：launch 加载了 dwa_local_planner_params.yaml，
+        但 move_base_params.yaml 选的是 TrajectoryPlannerROS。
+        结果是 TPR 一个参数都没读到，全用默认值 ——
+        而 TPR 的默认 holonomic_robot = true，
+        它会规划并输出 linear.y（横向平移），差速轮根本不吃这个分量，
+        机器人因此一步不动，同时 8 次恢复行为全部无效、日志无报错。
+
+      当前用 base_local_planner/TrajectoryPlannerROS（参数在
+      base_local_planner_params.yaml，顶层键 TrajectoryPlannerROS）。
+
+      dwa_local_planner_params.yaml 保留在 config/ 下作对照，
+      不再加载。切换步骤见 move_base_params.yaml 的说明。
     -->
-    <rosparam file="$(find llm_robot_agent)/config/dwa_local_planner_params.yaml" command="load"/>
+    <rosparam file="$(find llm_robot_agent)/config/base_local_planner_params.yaml" command="load"/>
     <rosparam file="$(find llm_robot_agent)/config/move_base_params.yaml" command="load"/>
 
     <remap from="cmd_vel" to="cmd_vel"/>

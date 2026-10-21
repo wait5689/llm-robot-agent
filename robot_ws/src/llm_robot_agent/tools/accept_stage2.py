@@ -124,7 +124,7 @@ def load_home(locations_path: str) -> Tuple[float, float]:
             return vals[0], vals[1]
         if in_home and line and not line.startswith(" "):
             break
-    return 0.0, -3.0
+    return -0.40, -3.20
 
 
 def check_paths(world: str, locations_path: str, radius: float,
@@ -249,11 +249,19 @@ def main() -> int:
     overall = True
 
     # 1. 世界审计
+    #
+    # ★ --start 必须用 "--start=值" 这种等号形式，不能拆成两个参数。
+    #   home 的 x 是负数（当前 -0.40），拆写时 argparse 会把
+    #   "-0.40,-3.20" 当成另一个选项标志，直接报
+    #   "argument --start: expected one argument" 并退出，
+    #   于是本项被判 FAIL —— 而手工在同一目录跑同一条命令却正常。
+    #   这类「换个调用方式就失败」的坑很容易误判成世界数据出错。
+    _hx, _hy = load_home(args.locations)
     code, out = run_script("tools/audit_world.py",
                            ["--world", args.world,
                             "--locations", args.locations,
                             "--radius", str(args.radius),
-                            "--start", "%.2f,%.2f" % load_home(args.locations)])
+                            "--start=%.2f,%.2f" % (_hx, _hy)])
     results.append({"check": "世界可导航性", "ok": code == 0,
                     "detail": "全部语义地点可从起点到达" if code == 0
                     else "存在不可达地点，详见 audit_world 输出"})

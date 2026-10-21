@@ -147,14 +147,24 @@ class Grid(object):
     def _rasterize(self, geometry, inflation):
         W, H, res = self.w, self.h, self.res
 
+        # ★ 必须按「到障碍表面的真实欧氏距离」判断是否被膨胀覆盖，
+        #   不能对矩形做「hx+inflation, hy+inflation」的轴对齐扩张。
+        #
+        #   矩形扩张会把四个角也扩成障碍（相当于外接正方形膨胀），
+        #   比真实的 Minkowski 和保守得多：一个 0.5x0.5 的箱子
+        #   在膨胀 0.35 后，矩形扩张的角部会比真实圆角多覆盖 0.15m。
+        #   本项目因此误报过 corridor 与 hall「在膨胀栅格上是占据格」，
+        #   而这两个点用 clearance() 量出来是 1.76m —— 远高于安全线。
+        #   反过来，如果坐标真的紧贴家具，clearance() 也会一致地报小。
+        #   所以这里直接复用 geometry.clearance()，保证
+        #   「单点净空」与「栅格连通性」两套判断口径完全一致。
         for o in geometry.obs:
             if o.kind == "cylinder":
-                # 圆柱用圆膨胀
                 hx = hy = o.hx + inflation
-                is_circle = True
             else:
+                # 包围盒外扩 amount 后再逐个格子用真实距离判定，
+                # amount 只是候选范围，不参与最终判断。
                 hx, hy = o.hx + inflation, o.hy + inflation
-                is_circle = False
 
             i0, j0 = self._cell(o.cx - hx, o.cy - hy)
             i1, j1 = self._cell(o.cx + hx, o.cy + hy)
@@ -163,21 +173,33 @@ class Grid(object):
                 base = j * W
                 for i in range(max(0, i0), min(W, i1 + 1)):
                     x = self.xmin + (i + 0.5) * res
-                    if is_circle:
-                        if (x - o.cx) ** 2 + (y - o.cy) ** 2 <= hx * hx:
-                            self.data[base + i] = 1
+                    # 到该障碍表面的真实距离
+                    if o.kind == "cylinder":
+                        d = math.hypot(x - o.cx, y - o.cy) - o.hx
                     else:
-                        if abs(x - o.cx) <= hx and abs(y - o.cy) <= hy:
-                            self.data[base + i] = 1
+                        dx = max(abs(x - o.cx) - o.hx, 0.0)
+                        dy = max(abs(y - o.cy) - o.hy, 0.0)
+                        if dx > 0 or dy > 0:
+                            d = math.hypot(dx, dy)
+                        else:
+                            # 在盒内
+                            d = -min(o.hx - abs(x - o.cx),
+                                     o.hy - abs(y - o.cy))
+                    if d < inflation:
+                        self.data[base + i] = 1
 
         # 场地边界外不可通行（留一点余量，模拟墙体）
+        #
+        # ★ 边界要用 bounds 的实际四条边，不能写成
+        #   abs(x) > max(|xmin|,|xmax|) - 0.95
+        #   那种写法在原点不对称的 bounds 下会把一侧的正常区域裁掉。
         for j in range(H):
             y = self.ymin + (j + 0.5) * res
             base = j * W
             for i in range(W):
                 x = self.xmin + (i + 0.5) * res
-                if (abs(x) > max(abs(self.xmin), abs(self.xmax)) - 0.95 or
-                        abs(y) > max(abs(self.ymin), abs(self.ymax)) - 0.95):
+                if (x < self.xmin + 0.95 or x > self.xmax - 0.95 or
+                        y < self.ymin + 0.95 or y > self.ymax - 0.95):
                     self.data[base + i] = 1
 
     def is_free(self, x, y):

@@ -89,12 +89,12 @@ python3 tools/check_locations.py
 
 ```
 地点         坐标               净空(m)      判定
-home       (  0.00, -3.40) +1.57     1.51   OK
-room_a     ( -3.90,  1.80) +1.57     1.36   OK
-room_c     (  0.00,  2.20) +1.57     2.25   OK
-room_b     (  4.45,  1.20) +0.00     1.14   OK
+home       (  0.30, -2.55) +1.57     2.35   OK
+room_a     ( -3.90,  1.80) +0.00     1.36   OK
+room_c     (  0.00,  2.20) -1.57     2.30   OK
+room_b     (  3.85,  1.55) +3.14     1.15   OK
 room_d     ( -3.65, -2.45) +0.00     1.34   OK
-corridor   (  0.00, -1.20) +1.57     1.44   OK
+corridor   (  0.10, -1.90) +1.57     1.98   OK
 hall       (  3.35, -3.10) +3.14     1.76   OK
 ...
 连通性: 21/21 对全部双向可达 OK
@@ -130,12 +130,12 @@ python3 tools/accept_stage2.py
         resolution: 0.05
         origin: [-7.095, -6.095]
 [PASS] A* 路径可达性
-        corridor   路径   2.20 m (直线  2.20 m, 绕行 1.00x)
-        hall       路径   3.47 m (直线  3.36 m, 绕行 1.03x)
-        room_a     路径   7.58 m (直线  6.50 m, 绕行 1.17x)
-        room_b     路径   6.88 m (直线  6.40 m, 绕行 1.08x)
-        room_c     路径   5.60 m (直线  5.60 m, 绕行 1.00x)
-        room_d     路径   4.04 m (直线  3.77 m, 绕行 1.07x)
+        corridor   路径   0.73 m (直线  0.68 m, 绕行 1.08x)
+        hall       路径   3.28 m (直线  3.10 m, 绕行 1.06x)
+        room_a     路径   7.23 m (直线  6.05 m, 绕行 1.20x)
+        room_b     路径   6.04 m (直线  5.42 m, 绕行 1.11x)
+        room_c     路径   4.87 m (直线  4.76 m, 绕行 1.02x)
+        room_d     路径   3.99 m (直线  3.95 m, 绕行 1.01x)
 结论：全部通过
 ```
 
@@ -366,17 +366,33 @@ print("RESULT: %d/%d PASS" % (results.count("PASS"), len(results)))
 **预期输出**（8/8）：
 
 ```
-corridor  st=3      7.9s target=(  0.00, -1.20) truth=(  0.05, -1.38) err=0.18 amcl_err=0.05 PASS
-room_c    st=3     12.5s target=(  0.00,  2.20) truth=(  0.02,  2.03) err=0.17 amcl_err=0.06 PASS
-room_a    st=3     17.1s target=( -3.90,  1.80) truth=( -3.67,  1.82) err=0.23 amcl_err=0.06 PASS
-home      st=3     32.1s target=(  0.00, -3.40) truth=( -0.11, -3.34) err=0.12 amcl_err=0.08 PASS
-hall      st=3     16.8s target=(  3.35, -3.10) truth=(  3.25, -3.18) err=0.13 amcl_err=0.08 PASS
-room_b    st=3     18.5s target=(  4.45,  1.20) truth=(  4.58,  0.99) err=0.24 amcl_err=0.22 PASS
-room_d    st=3     40.5s target=( -3.65, -2.45) truth=( -3.31, -2.31) err=0.37 amcl_err=0.19 PASS
-home      st=3     15.2s target=(  0.00, -3.40) truth=( -0.08, -3.37) err=0.08 amcl_err=0.11 PASS
+corridor  st=3      3.4s target=(  0.10, -1.90) truth=(  0.22, -2.06) err=0.20 amcl_err=0.04 PASS
+room_c    st=3     18.8s target=(  0.00,  2.20) truth=( -0.06,  1.98) err=0.22 amcl_err=0.03 PASS
+room_a    st=3     23.2s target=( -3.90,  1.80) truth=( -3.70,  1.85) err=0.20 amcl_err=0.03 PASS
+home      st=3     26.4s target=(  0.30, -2.55) truth=(  0.19, -2.43) err=0.16 amcl_err=0.03 PASS
+hall      st=3     15.8s target=(  3.35, -3.10) truth=(  3.19, -3.10) err=0.16 amcl_err=0.04 PASS
+room_b    st=3     19.9s target=(  3.85,  1.55) truth=(  3.87,  1.33) err=0.22 amcl_err=0.03 PASS
+room_d    st=3     38.8s target=( -3.65, -2.45) truth=( -3.45, -2.37) err=0.22 amcl_err=0.03 PASS
+home      st=3     15.5s target=(  0.30, -2.55) truth=(  0.12, -2.66) err=0.21 amcl_err=0.05 PASS
 
 RESULT: 8/8 PASS
+
+=== 振荡中止 ===
+0
+=== 规划失败 ===
+0
+=== 恢复行为 ===
+0
 ```
+
+最后三行是脚本统计的 /move_base 日志关键字计数：
+`Reached the goal` 之外的三类失败信号**都应为 0**。
+只要出现非零，即使 `RESULT` 是 8/8 也要去 §6 查对应症状。
+
+末尾可能看到一条
+`Got a transition callback on a goal handle that we're not tracking`：
+这是连续快速发目标时 move_base 的无害告警，出现在最后一段结束之后，
+不影响结果。
 
 **怎么读这张表**：
 
@@ -476,9 +492,131 @@ grep -n -A12 "^obstacle_layer:" config/costmap_common_params.yaml
 
 机器人在原地来回摆。
 
+先区分两种情况：
+
+**E1：只在「从一个房间去另一个房间」时发生，房间内部目标正常**
+
+这是**门洞太窄**的症状，不是参数问题。先查门洞净空：
+
+```bash
+cd ~/catkin_ws/src/llm_robot_agent
+python3 tools/check_locations.py
+```
+
+然后单独量门洞中心线的净空（下面这段扫 y=0 主墙三个门洞）：
+
+```bash
+python3 - <<'PY'
+import sys; sys.path.insert(0, 'tools')
+from audit_world import parse_world
+import importlib.util
+spec = importlib.util.spec_from_file_location("c", "tools/check_locations.py")
+m = importlib.util.module_from_spec(spec); spec.loader.exec_module(m)
+obs, _ = parse_world("worlds/complex_indoor.world")
+G = m.Geometry(obs)
+for x in (-3.8, 0.0, 3.8):
+    best = max((G.clearance(v, 0.0), v) for v in
+               [i * 0.02 + x - 0.6 for i in range(61)])
+    print("x=%.1f  门洞最佳净空 %.3f" % (x, best[0]))
+for x in (-2.8, 2.8):
+    best = max((G.clearance(x, v), v) for v in
+               [i * 0.02 + 0.2 for i in range(240)])
+    print("x=%.1f  隔墙门洞最佳净空 %.3f @ y=%.2f" % (x, best[0], best[1]))
+PY
+```
+
+门洞净空应 ≥ 0.90。若某个只有 0.3~0.5，说明：
+
+- **world 文件不是当前 `gen_world.py` 生成的**（本项目真实踩过，见症状 H）
+- 或者有家具横在门洞正前方 1.0 m 内（本项目真实踩过，见症状 I）
+
+**E2：在任何地方都会发生**
+
+调整参数：
+
 - `config/move_base_params.yaml` 的 `oscillation_timeout: 20.0`
   （太小会误杀正常的对姿态动作）
 - `config/base_local_planner_params.yaml` 的 `oscillation_reset_dist: 0.20`
+
+### 症状 H：★ 房间内目标都能到，但「跨房间」必然中途失败，日志无报错
+
+本项是**最隐蔽**的故障，本项目为此花了很长时间。典型表现：
+
+- 单独测某个房间内的目标 → 成功
+- 从该房间出发去别处 → 中途 `st=4` 或超时，真值停在门口附近
+- `/move_base` 日志里没有 ERROR，只有 `oscillating over and over`
+- `tools/check_locations.py` 报出所有地点净空都「OK」（因为它只看点）
+
+**根本原因**：`worlds/complex_indoor.world` 是**旧版** `gen_world.py`
+生成的，从未在改完参数后重新生成过。
+
+本项目实测：`gen_world.py` 里 `DOOR_W` 已从 `1.10` 改成 `1.90`、
+门中心已从 `±4.0` 改成 `±3.8`，但提交的 world 文件仍是旧参数产物
+（两份文件差 5873 行）。于是：
+
+- 三个门洞看起来都在、位置也合理
+- 实际净宽只有 **1.10 m**（不是 1.90 m）
+- 扣掉两侧膨胀 `2 × 0.35` 后，留给机器人中心的活动带宽只有 0.40 m
+- 一进门口就开始振荡 → 中止
+
+**怎么确认**：
+
+```bash
+cd ~/catkin_ws/src/llm_robot_agent
+python3 tools/gen_world.py --out /tmp/world_new.world
+diff -q worlds/complex_indoor.world /tmp/world_new.world && echo "一致" || echo "★ 过期"
+```
+
+只要不是「一致」，就说明仓库里的 world 与代码不同步。
+
+**怎么修**（两条命令，必须都跑）：
+
+```bash
+python3 tools/gen_world.py --out worlds/complex_indoor.world
+python3 tools/build_map.py --world worlds/complex_indoor.world \
+                           --out maps/indoor --resolution 0.05
+```
+
+⚠️ **必须同时重建地图**。`maps/indoor.pgm` 是离线栅格（**不是** SLAM 产物），
+是世界几何的投影。世界一变不重算，代价地图就会与真实几何不一致 ——
+本项目另一次事故就是提交了过期的地图，导致全局代价地图 98% 是致命格，
+机器人从第一步就不动、且日志全绿。
+
+重建后 `config/locations.yaml` 的坐标**必须重新选**（见症状 I）。
+
+### 症状 I：★ 重新生成 world 后，原本「净空 1.1」的点变成 0.16
+
+家具位置会随 `gen_world.py` 一起变。本项目实测重新生成后：
+
+| 地点 | 旧 world | 新 world |
+|---|---|---|
+| `hall` | 1.104 | **0.16**（`reception_desk_top` 挪到了那里） |
+| `room_b` | 1.050 | 0.80 |
+| `room_d` | 0.985 | 0.84 |
+
+所以 **world 与 `locations.yaml` 必须成对更新**。改完 world 一定要：
+
+```bash
+python3 tools/check_locations.py     # 退出码 0 才算通过
+python3 tools/accept_stage2.py       # 4 项全 PASS 才算通过
+```
+
+另外，家具不得遮挡门洞正前方 1.0 m。本项目实测一次：
+`crate_c_corner` 与 `tvstand_b` 从两侧把 `x=+2.8` 的门洞夹到净空 **0.398 m**，
+而那是 `room_b` 唯一的出口 —— 于是「去 room_b」成功、
+「从 room_b 出发」必然振荡中止。把这两个家具挪走后，该门洞恢复到 0.920。
+
+### 症状 J：★ 选点脚本报「净空 1.76」，实际只有 0.12
+
+本项目真实踩过：自写的选点脚本里，打印用的格式串与参数个数不符，
+把内部排序用的 `score = clearance - 0.30 × 距锚点距离`
+当成净空打印出来，于是 `corridor` / `hall` 被按 1.76 m 写进
+`locations.yaml`，实际只有 **0.12 / 0.25 m** —— 到点即僵死。
+
+**教训**：净空数字只能来自
+`tools/check_locations.Geometry.clearance()` 的返回值，并且
+「验收打印」与「搜索打分」必须是两套独立的量，不能共用一行输出。
+`config/locations.yaml` 里的每个坐标都以 `check_locations.py` 的输出为准。
 
 ### 症状 F：`TF_REPEATED_DATA` 刷屏
 
@@ -572,14 +710,24 @@ Mock 后端不需要 ROS，也不需要网络，用于验证 Agent 的决策循�
    用它验证导航栈的上下游是合适的，但**不能替代真实 SLAM 建图**
    作为最终交付依据。真机流程见 `tools/build_map.py` 顶部注释的 [A] 方案。
 
-4. **改 world 必须同步三件事**
+4. **改 world 必须同步四件事**
    - `tools/gen_world.py`（布局参数）
    - 重新生成 `worlds/complex_indoor.world`
-   - 重新生成 `maps/indoor.pgm`，并重跑 `check_locations.py`
+   - 重新生成 `maps/indoor.pgm`
+   - 重新选 `config/locations.yaml` 的坐标，并重跑
+     `check_locations.py`（退出码 0）与 `accept_stage2.py`（4 项 PASS）
+
+   ⚠️ 这四步少做任何一步都会产生「日志全绿但导航失败」的故障。
+   本项目最严重的一次事故就是只改了 `gen_world.py` 没重新生成 world：
+   门洞净宽实际只有 1.10 m，跨房间导航必然振荡中止。
 
 5. **里程计标定比调参重要**
    `odom/truth` 不接近 1.000 时，**不要**用 `wheelSeparation` 硬凑。
    先修物理（万向球摩擦、接触刚度），再用几何真值。
+
+6. **净空数字只能来自 `check_locations.Geometry.clearance()`**
+   自写脚本很容易在格式化输出时把排序分数和验收数值混在一起。
+   `config/locations.yaml` 里的每个坐标都以 `check_locations.py` 的输出为准。
 
 ---
 
@@ -592,18 +740,38 @@ source /opt/ros/noetic/setup.bash
 source ~/catkin_ws/devel/setup.bash
 cd ~/catkin_ws/src/llm_robot_agent
 
-echo "[1/3] 地点体检"
+echo "[1/5] world 与 gen_world.py 是否同步"
+python3 tools/gen_world.py --out /tmp/world_check.world > /dev/null 2>&1
+if diff -q worlds/complex_indoor.world /tmp/world_check.world > /dev/null 2>&1; then
+  echo "  OK"
+else
+  echo "  FAIL —— world 是旧版生成的，按 §6 症状 H 重建"
+fi
+
+echo "[2/5] 地图是否与 world 同步"
+python3 tools/build_map.py --world worlds/complex_indoor.world \
+        --out /tmp/map_check --resolution 0.05 > /dev/null 2>&1
+if diff -q maps/indoor.pgm /tmp/map_check.pgm > /dev/null 2>&1; then
+  echo "  OK"
+else
+  echo "  FAIL —— 地图过期，重新生成 maps/indoor.pgm"
+fi
+
+echo "[3/5] 地点体检"
 python3 tools/check_locations.py > /tmp/c1.log 2>&1 \
   && echo "  OK" || { echo "  FAIL"; tail -20 /tmp/c1.log; }
 
-echo "[2/3] 阶段二验收"
+echo "[4/5] 阶段二验收"
 python3 tools/accept_stage2.py > /tmp/c2.log 2>&1 \
   && echo "  OK" || { echo "  FAIL"; tail -20 /tmp/c2.log; }
 
-echo "[3/3] 编译"
+echo "[5/5] 编译"
 cd ~/catkin_ws && catkin_make --pkg llm_robot_agent > /tmp/c3.log 2>&1 \
   && echo "  OK" || { echo "  FAIL"; tail -20 /tmp/c3.log; }
 ```
+
+前两项是本轮新增的：它们能提前发现「日志全绿但导航失败」这类
+最隐蔽的故障（world 或地图与代码不同步）。
 
 ---
 
@@ -613,6 +781,11 @@ cd ~/catkin_ws && catkin_make --pkg llm_robot_agent > /tmp/c3.log 2>&1 \
 
 | 问题 | 文件 | 现象 |
 |---|---|---|
+| **world 文件是旧版 gen_world.py 的产物**（门宽实际 1.10 m 而非 1.90） | `worlds/complex_indoor.world` | 房间内目标能到，跨房间必然振荡中止且无报错 |
+| **`crate_c_corner` + `tvstand_b` 把 x=+2.8 门洞夹到净空 0.398** | `tools/gen_world.py` | room_b 进得去出不来 |
+| **`nightstand_d` 堵住 y=0 西门洞南侧出口** | `tools/gen_world.py` | 进出 room_d 时蹭墙、偶发中止 |
+| **`check_locations.Grid` 用矩形膨胀代替真实距离膨胀** | `tools/check_locations.py` | 误报远离家具的点「在膨胀栅格上是占据格」 |
+| **`accept_stage2.py` 用 `--start 值` 拆写传负坐标** | `tools/accept_stage2.py` | 起点 x 为负时 argparse 报错，误判世界不可导航 |
 | 门洞 1.10 m + 膨胀 0.42 把门封死 | `tools/gen_world.py` | 所有目标都「不可达」 |
 | `room_c` 货架紧贴门洞，膨胀后吃掉门洞上沿 | `tools/gen_world.py` | 机器人卡在门洞内不动 |
 | 驱动轮嵌进底盘，转向打滑 15% | `urdf/advanced_robot.urdf` | 里程计虚报，AMCL 长距离跟丢 |

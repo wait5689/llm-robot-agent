@@ -480,7 +480,14 @@ def build() -> str:
     parts.append(box("rack_c_back", 0.0, 4.72, 2.20, 0.40, 2.00, METAL_LIGHT))
     parts.append(box("rack_c_back_s1", 0.0, 4.72, 2.16, 0.38, 0.02, METAL_DARK, z_off=0.90))
     # 地面只留角落一个箱子，不放中央
-    parts.append(box("crate_c_corner", 2.35, 1.15, 0.50, 0.50, 0.50, WOOD_LIGHT, yaw=0.25))
+    #
+    # ★ 位置经过门洞净空校验。原先在 (2.35, 1.15)，离 x=+2.8 墙上的
+    #   room_b 门洞（可用 y∈[1.20,1.60]）只有 0.4m，
+    #   与 room_b 一侧的 tvstand_b 一起把门洞夹到净空 0.398m，
+    #   而 room_b 只有这一个出口 —— 机器人进得去出不来，
+    #   表现是「去 room_b 能成功、从 room_b 去别处必然振荡中止」。
+    #   现在挪到 room_c 东南角的贴墙位置，离所有门洞 >1.5m。
+    parts.append(box("crate_c_corner", 2.30, 3.90, 0.50, 0.50, 0.50, WOOD_LIGHT, yaw=0.25))
 
     # ---- room_b：客厅（东北，x>2.8, y>0） ----
     # 沙发贴东墙
@@ -498,13 +505,18 @@ def build() -> str:
     parts.append(box("table_b_leg_4", 4.40, 3.60, 0.05, 0.05, 0.40, METAL_DARK, z_off=0.20))
     parts.append(box("magazine_b", 4.20, 3.05, 0.24, 0.18, 0.02, "0.80 0.20 0.20 1", z_off=0.45))
     parts.append(cylinder("cup_b", 4.20, 3.40, 0.04, 0.10, WHITE, z_off=0.47))
-    # 电视柜：放在 room_b 内部西南侧，正对沙发。
-    # 【坑】原先贴南侧分隔墙 y≈0.42，正好堵死 x=3.8 那个门洞
-    # （门宽 1.6m 占 x∈[3.0,4.6]，柜子加膨胀后 x∈[3.28,5.32]），
-    # 等于把东北房间的入口封了。现在移到房间内部，离任何门都 >1.5m。
-    parts.append(box("tvstand_b", 3.35, 2.60, 0.40, 1.30, 0.50, WOOD_DARK))
-    parts.append(box("tv_b_screen", 3.18, 2.60, 0.04, 1.05, 0.60, BLACK, z_off=0.85))
-    parts.append(box("tv_b_stand", 3.24, 2.60, 0.06, 0.20, 0.15, METAL_DARK, z_off=0.60))
+    # 电视柜：贴在 room_b 内部东侧，正对沙发。
+    # 【坑 1】原先贴南侧分隔墙 y≈0.42，堵死 x=3.8 那个门洞
+    # （门宽 1.6m 占 x∈[3.0,4.6]，柜子加膨胀后 x∈[3.28,5.32]）。
+    # 【坑 2】后来移到 (3.35, 2.60)，仍堵住 x=+2.8 墙上的 room_b 门洞
+    # （门洞可用 y∈[1.20,1.60]，柜子 y∈[1.95,3.25]，膨胀后压到 y≈1.60），
+    # 与 room_c 的 crate_c_corner 一起把净空夹到 0.398m。
+    # room_b 只有 x=+2.8 这一个出口，所以等于把机器人关在房间里：
+    # 「去 room_b」能成功，「从 room_b 出发」必然振荡中止。
+    # 现在贴东墙、让开所有门洞通道，离门洞 >1.5m。
+    parts.append(box("tvstand_b", 5.20, 1.10, 0.40, 1.30, 0.50, WOOD_DARK))
+    parts.append(box("tv_b_screen", 5.03, 1.10, 0.04, 1.05, 0.60, BLACK, z_off=0.85))
+    parts.append(box("tv_b_stand", 5.09, 1.10, 0.06, 0.20, 0.15, METAL_DARK, z_off=0.60))
     # 盆栽靠角
     parts.append(cylinder("pot_b", 3.15, 4.55, 0.15, 0.30, POT_TERRA, z_off=0.15))
     parts.append(cylinder("plant_b", 3.15, 4.55, 0.22, 0.40, PLANT_GREEN, z_off=0.50))
@@ -520,10 +532,15 @@ def build() -> str:
     parts.append(box("pillow_d2", -5.45, -1.55, 0.62, 0.32, 0.12, "0.90 0.90 0.92 1", z_off=0.58))
     parts.append(box("blanket_d", -5.45, -2.15, 0.84, 1.10, 0.08, FABRIC_GREEN, z_off=0.56))
     # 床头柜贴北墙
-    parts.append(box("nightstand_d", -4.55, -0.45, 0.44, 0.42, 0.50, WOOD_MED))
-    parts.append(cylinder("lamp_d_base", -4.55, -0.45, 0.07, 0.03, METAL_DARK, z_off=0.515))
-    parts.append(cylinder("lamp_d_pole", -4.55, -0.45, 0.02, 0.24, METAL_DARK, z_off=0.65))
-    parts.append(cylinder("lamp_d_shade", -4.55, -0.45, 0.11, 0.16, "0.95 0.90 0.80 1", z_off=0.85))
+    #
+    # ★ 原在 (-4.55, -0.45)，正好压在 y=0 主墙西门洞（x∈[-4.75,-2.85]）
+    #   的南侧出口上：柜子加膨胀后覆盖 y∈[-1.01,0.11]，
+    #   把西门洞的净空从 0.905 压到 0.582，机器人进出 room_d 时会蹭到。
+    #   现在往南挪 0.5m，仍在床头附近，但让开了门洞通道。
+    parts.append(box("nightstand_d", -4.55, -0.95, 0.44, 0.42, 0.50, WOOD_MED))
+    parts.append(cylinder("lamp_d_base", -4.55, -0.95, 0.07, 0.03, METAL_DARK, z_off=0.515))
+    parts.append(cylinder("lamp_d_pole", -4.55, -0.95, 0.02, 0.24, METAL_DARK, z_off=0.65))
+    parts.append(cylinder("lamp_d_shade", -4.55, -0.95, 0.11, 0.16, "0.95 0.90 0.80 1", z_off=0.85))
     # 衣柜贴西墙南段
     parts.append(box("wardrobe_d", -5.68, -3.55, 0.44, 1.10, 2.00, WOOD_MED))
     parts.append(box("wardrobe_d_line", -5.68, -3.55, 0.02, 1.06, 0.02, WOOD_DARK, z_off=1.00))
