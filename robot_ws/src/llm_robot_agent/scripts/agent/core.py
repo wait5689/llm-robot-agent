@@ -389,13 +389,37 @@ class LLMRobotAgent:
         return {"success": success, "message": message, "error_code": code.value}
 
     def _compress(self, messages: List[Dict[str, Any]], limit: int = 12) -> List[Dict[str, Any]]:
-        """保留 system + 首条任务 + 最近对话，中间折叠为进度摘要。"""
+        """保留 system + 首条任务 + 最近对话，中间折叠为进度摘要。
+
+        切点必须落在「完整对话单元」的起点上。消息流中
+        assistant(tool_calls) 与紧随其后的 tool 消息是成对的：
+        若按固定条数从尾部切，切点很可能落在某条 tool 消息上，
+        它的父 assistant 已被裁掉，就变成了一条孤立的 tool 消息，
+        OpenAI 兼容接口会直接返回 400 Bad Request，整个任务中断。
+        """
         if len(messages) <= limit:
             return messages
 
         head = messages[:2]
-        recent = messages[-(limit - 3):]
-        summary = summarize_trace(self.record.trace)
+
+        start = len(messages) - (limit - 3)
+        if start < 2:
+            return messages
+        # 跳过所有孤立 tool 消息，直到落在 assistant / user 边界上
+        while start < len(messages) and messages[start].get("role") == "tool":
+            start += 1
+        if start >= len(messages):
+            return messages
+
+        recent = messages[start:]
+        # 末尾若残留一条只有 tool_calls、没有 tool 回应的 assistant，
+        # 同样不合法（tool_call_id 悬空），一并丢掉。
+        while recent and recent[-1].get("role") == "assistant" and recent[-1].get("tool_calls"):
+            recent = recent[:-1]
+        if not recent:
+            return messages
+
+        summary = summarize_trace(self.record.trace) if self.record else "（无历史记录）"
         bridge = {
             "role": "user",
             "content": (

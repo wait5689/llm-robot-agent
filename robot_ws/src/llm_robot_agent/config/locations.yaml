@@ -23,11 +23,17 @@
 frame_id: map
 
 # 机器人每次任务开始时的默认点位（充电桩旁，南区）
-# 与 Web UI 地图上的  起点位置一致
+# 与 Web UI 地图上的起点位置一致
+#
+# 【重要】必须与 launch/gazebo.launch 与 launch/navigation.launch 的
+# 机器人生成位姿 (x, y) 保持一致，否则 Gazebo 会把机器人刷进充电桩里，
+# AMCL 初始位姿也跟着落在障碍物内，定位从第 0 秒就是错的。
+# 充电桩本体位于 (0.80, -3.60)、半径 0.30m，机器人必须停在它旁边
+# 而不是压在它上面，因此 home 取 (0.00, -3.00)。
 home:
-  position: [0.80, -3.60]
+  position: [0.00, -3.00]
   yaw: 1.5708
-  description: "起点 / 充电桩，南区中央"
+  description: "起点 / 充电桩旁，南区中央"
 
 locations:
   # ---- 北区：三个房间 ----
@@ -58,9 +64,12 @@ locations:
     description: "中央走廊（主分隔墙南侧）"
 
   hall:
-    position: [3.00, -1.20]
+    # 前台桌 reception_desk (1.6 x 0.6m) 位于 (3.00, -1.20)，
+    # 旧坐标 (3.00, -1.20) 直接落在桌体内，move_base 必然 abort。
+    # 现取桌子西侧 0.40m 处，仍是南区大厅范围内。
+    position: [1.80, -1.20]
     yaw: 3.1416
-    description: "南区大厅，柱子之间"
+    description: "南区大厅，前台桌西侧"
 
 # 别名表：允许用户用中文/口语化说法指代地点
 aliases:

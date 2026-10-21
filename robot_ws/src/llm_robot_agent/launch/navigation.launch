@@ -41,15 +41,17 @@
   <arg name="use_rviz" default="true"/>
   <arg name="gui" default="true"/>
 
-  <!-- 机器人生成位姿：必须与 config/locations.yaml 的 home 一致 -->
-  <arg name="x" default="0.8"/>
-  <arg name="y" default="-3.6"/>
+  <!-- 机器人生成位姿：必须与 config/locations.yaml 的 home 一致。
+       充电桩本体在 (0.80,-3.60) r=0.30，机器人不能生成在桩体内，
+       故选 (0.00,-3.00)：障碍间隙 0.70m，且在起点连通域内。 -->
+  <arg name="x" default="0.0"/>
+  <arg name="y" default="-3.0"/>
   <arg name="z" default="0.15"/>
   <arg name="yaw" default="1.5708"/>
 
-  <!-- 初始位姿（喂给 AMCL），一般与生成位姿相同 -->
-  <arg name="init_pose_x" default="0.8"/>
-  <arg name="init_pose_y" default="-3.6"/>
+  <!-- 初始位姿（喂给 AMCL），必须与生成位姿相同 -->
+  <arg name="init_pose_x" default="0.0"/>
+  <arg name="init_pose_y" default="-3.0"/>
   <arg name="init_pose_yaw" default="1.5708"/>
 
   <param name="/use_sim_time" value="true"/>

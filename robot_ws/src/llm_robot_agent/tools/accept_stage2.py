@@ -106,7 +106,11 @@ def astar(grid: Grid, start: Tuple[float, float],
 # ----------------------------------------------------------------------
 
 def load_home(locations_path: str) -> Tuple[float, float]:
-    """从 locations.yaml 读 home，读不到用默认值。"""
+    """从 locations.yaml 读 home，读不到用默认值。
+
+    默认值必须与 launch/gazebo.launch 的 (x, y) 一致；不一致时
+    A* 会从一个「机器人根本不会出现的位置」起算，结论没有意义。
+    """
     text = open(locations_path, "r", encoding="utf-8").read()
     lines = text.split("\n")
     in_home = False
@@ -120,7 +124,7 @@ def load_home(locations_path: str) -> Tuple[float, float]:
             return vals[0], vals[1]
         if in_home and line and not line.startswith(" "):
             break
-    return 0.8, -3.6
+    return 0.0, -3.0
 
 
 def check_paths(world: str, locations_path: str, radius: float,
@@ -215,8 +219,11 @@ def check_map(world: str, map_yaml: str, locations_path: str,
 
 
 def run_script(script: str, args: List[str]) -> Tuple[int, str]:
+    # 必须显式指定 encoding：子进程输出是 UTF-8 中文，而 Windows 上
+    # text=True 默认按 GBK 解码，会抛 UnicodeDecodeError 让整个验收中断。
     p = subprocess.run([sys.executable, os.path.join(PKG_ROOT, script)] + args,
-                       capture_output=True, text=True)
+                       capture_output=True, text=True,
+                       encoding="utf-8", errors="replace")
     return p.returncode, (p.stdout or "") + (p.stderr or "")
 
 

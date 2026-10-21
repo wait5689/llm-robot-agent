@@ -368,6 +368,64 @@ class TestAgentReact:
         # 至少不应抛异常，且返回结构完整
         assert "steps" in result
 
+    def test_compress_keeps_message_structure_valid(self):
+        """上下文压缩后，消息结构必须仍对 OpenAI 兼容接口合法。
+
+        回归用例：曾按固定条数从尾部切片，切点落在 tool 消息上，
+        造成孤立 tool 消息（父 assistant 已被裁掉），接口返回
+        400 Bad Request。表现是任何超过 6 步的任务必然中断。
+        """
+        # 8 轮工具调用，足以触发多次压缩
+        script = [_call("navigate_to", '{"location": "room_a"}', f"c{i}")
+                  for i in range(8)]
+        script.append(_call("report_done", '{"summary": "完成"}', "cd"))
+        llm = FakeLLM(script)
+        agent, _ = self._agent(llm)
+        agent.run("反复去房间 A")
+
+        # 检查每一次发给模型的消息序列都合法
+        for idx, msgs in enumerate(llm.calls):
+            pending = set()
+            for pos, m in enumerate(msgs):
+                role = m["role"]
+                if role == "assistant":
+                    for tc in m.get("tool_calls") or []:
+                        pending.add(tc["id"])
+                elif role == "tool":
+                    tid = m.get("tool_call_id")
+                    assert tid in pending, (
+                        f"第 {idx} 次调用第 {pos} 条为孤立 tool 消息 "
+                        f"(tool_call_id={tid})，父 assistant 已被压缩裁掉"
+                    )
+                    pending.discard(tid)
+                elif role in ("system", "user"):
+                    assert not pending, (
+                        f"第 {idx} 次调用第 {pos} 条 {role} 消息插在"
+                        f"未回应的 tool_calls {pending} 之前"
+                    )
+            assert not pending, (
+                f"第 {idx} 次调用末尾遗留未回应的 tool_calls {pending}"
+            )
+
+    def test_compress_reduces_length(self):
+        """超过 limit 时必须真的折叠，否则上下文会无限增长。"""
+        msgs = [{"role": "system", "content": "s"},
+                {"role": "user", "content": "t"}]
+        for i in range(20):
+            msgs.append({"role": "assistant", "content": "", "tool_calls": [
+                {"id": f"c{i}", "type": "function",
+                 "function": {"name": "navigate_to", "arguments": "{}"}}]})
+            msgs.append({"role": "tool", "tool_call_id": f"c{i}", "content": "[OK]"})
+
+        agent, _ = self._agent(FakeLLM([]))
+        out = agent._compress(msgs, limit=12)
+        assert len(out) < len(msgs)
+        # 摘要桥接消息必须存在
+        assert any("此前执行摘要" in (m.get("content") or "") for m in out)
+        # 首条 system 与任务必须保留
+        assert out[0]["role"] == "system"
+        assert out[1]["role"] == "user"
+
 
 if __name__ == "__main__":
     sys.exit(pytest.main([__file__, "-v"]))
