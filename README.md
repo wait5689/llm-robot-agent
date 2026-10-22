@@ -269,7 +269,7 @@ python3 tools/accept_stage2.py
 3. **地图一致性** —— `indoor.pgm` 尺寸与 origin 是否覆盖全部地点
 4. **A\* 路径可达性** —— 在膨胀栅格上真实求解从 home 到各房间的路径，并给出绕行系数
 
-实测输出（2026-10-21 复测）：
+实测输出（2026-10-22 复测）：
 
 ```
 ==============================================================
@@ -280,24 +280,24 @@ python3 tools/accept_stage2.py
 [PASS] 导航配置静态校验
         launch / 参数 / 依赖自洽
 [PASS] 地图文件
-        size: 283x243
+        size: 284x244
         resolution: 0.05
-        origin: [-7.075, -6.075]
-        world_extent: [-7.08, -6.08, 7.08, 6.08]
+        origin: [-7.095, -6.095]
+        world_extent: [-7.09, -6.09, 7.11, 6.11]
         locations_outside_map: []
 [PASS] A* 路径可达性
-        corridor   路径   2.64 m (直线  2.10 m, 绕行 1.26x)
-        hall       路径   2.55 m (直线  2.55 m, 绕行 1.00x)
-        room_a     路径   7.64 m (直线  6.42 m, 绕行 1.19x)
-        room_b     路径   7.55 m (直线  6.31 m, 绕行 1.20x)
-        room_c     路径   5.69 m (直线  5.15 m, 绕行 1.10x)
-        room_d     路径   4.03 m (直线  3.79 m, 绕行 1.06x)
+        corridor   路径   0.73 m (直线  0.68 m, 绕行 1.08x)
+        hall       路径   3.28 m (直线  3.10 m, 绕行 1.06x)
+        room_a     路径   7.23 m (直线  6.05 m, 绕行 1.20x)
+        room_b     路径   6.04 m (直线  5.42 m, 绕行 1.11x)
+        room_c     路径   4.87 m (直线  4.76 m, 绕行 1.02x)
+        room_d     路径   3.99 m (直线  3.95 m, 绕行 1.01x)
 ==============================================================
 结论：全部通过，导航栈配置可用于实车/仿真验证
 ```
 
-绕行系数 1.00–1.26 说明路径确实是从门洞穿过去的，而不是被误判成直线可达。
-（`hall` 为 1.00x 是正常的：它就在起点正东侧的开阔南区，本来无需绕行。）
+绕行系数 1.01–1.20 说明路径确实是从门洞穿过去的，而不是被误判成直线可达。
+（`room_d` 为 1.01x 是正常的：它就在南区西侧，从起点过去基本是直线。）
 
 #### 3.5.3 世界布局
 
@@ -352,8 +352,8 @@ catkin_make && source devel/setup.bash
 
 | 阶段 | 验收动作 | 判定依据 | 状态 |
 |---|---|---|---|
-| 一、仿真环境 | `gazebo.launch` + 键盘遥控 | Gazebo 中机器人可移动 | 代码就绪，待实机验证 |
-| 二、自主导航 | `navigation.launch` + RViz 点目标 | 机器人绕障到达 | 静态验收全通过（`accept_stage2.py`），待实机验证 |
+| 一、仿真环境 | `gazebo.launch` + 键盘遥控 | Gazebo 中机器人可移动 | 已验证（里程计 odom/truth 0.996~1.000） |
+| 二、自主导航 | `navigation.launch` 连续 8 目标 | 真值误差 < 0.6m | **已验证：8/8 PASS**（三轮独立复现） |
 | 三、LLM Agent | `full_system.launch task:="..."` | 多地点任务自主完成 | 真实模型已验证（Mock 后端） |
 | 三、异常处理 | `--fault room_a:blocked` | 失败后自动重试成功 | 已验证（真实模型自主重试） |
 | 四、扩展 | `web_server.py` | 浏览器完成任务并看到轨迹 | 已验证（Mock） |
@@ -398,9 +398,41 @@ catkin_make && source devel/setup.bash
 
 ## 五、验证记录（本地实测）
 
+**Gazebo 端到端导航验证**（连续 8 个目标，对比 Gazebo 真值，2026-10-22）：
+
+```
+corridor  st=3   3.3s target=( 0.10,-1.90) truth=( 0.20,-2.05) err=0.18 amcl_err=0.04 PASS
+room_c    st=3  19.4s target=( 0.00, 2.20) truth=( 0.09, 2.02) err=0.20 amcl_err=0.04 PASS
+room_a    st=3  18.1s target=(-3.90, 1.80) truth=(-3.71, 1.85) err=0.20 amcl_err=0.05 PASS
+home      st=3  44.7s target=( 0.30,-2.55) truth=( 0.17,-2.37) err=0.22 amcl_err=0.05 PASS
+hall      st=3  15.7s target=( 3.35,-3.10) truth=( 3.15,-3.06) err=0.20 amcl_err=0.01 PASS
+room_b    st=3  21.3s target=( 3.85, 1.55) truth=( 3.80, 1.37) err=0.19 amcl_err=0.01 PASS
+room_d    st=3  85.8s target=(-3.65,-2.45) truth=(-3.45,-2.25) err=0.28 amcl_err=0.12 PASS
+home      st=3  15.5s target=( 0.30,-2.55) truth=( 0.12,-2.65) err=0.20 amcl_err=0.03 PASS
+
+RESULT: 8/8 PASS
+振荡中止 0 | 规划失败 0 | ERROR 行 0
+```
+
+三轮独立复现（两次冷启动 + 一次带协方差跟踪）均为 **8/8**，
+真值误差稳定在 0.18~0.29m，AMCL 误差 0.01~0.12m。
+
+两点需要如实说明：
+
+1. **单段耗时有抖动**（同一段在 15s~86s 之间波动，且变慢的段每次不同）。
+   已排查过累计漂移假设并排除：AMCL 协方差在运行中单调**下降**
+   （0.0121 → 0.0002），`map→odom` 偏移稳定在 0.19~0.31m，
+   单独压测 room_d 路径只需 19~28s。结论是仿真器自身的调度抖动，
+   不影响成功率。
+
+2. **偶发恢复行为**：约半数运行会在最长的那段触发 1~2 次
+   保守重置或原地旋转，最终仍能到达，只是该段耗时拉长。
+   日志里 `Recovery behavior will clear layer 'obstacles'`（t≈1.8s）
+   是 move_base 启动时的一次性初始化，不是失败信号。
+
 ```
 $ python -m pytest tests/ -q
-33 passed in 0.28s
+33 passed in 1.90s
 
 $ python demos/demo.py
   场景 1: 通过   多地点连续任务        → room_a, room_b, home 全部到达

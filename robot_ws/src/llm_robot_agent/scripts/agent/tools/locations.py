@@ -133,7 +133,16 @@ class LocationMap:
 
 
 def default_location_map() -> LocationMap:
-    """不依赖外部 YAML 的兜底地点表，保证程序永远能启动。"""
+    """不依赖外部 YAML 的兜底地点表，保证程序永远能启动。
+
+    ⚠️ 这里的坐标是**示意值**，与 worlds/complex_indoor.world 的真实布局
+    无关，只用于「无需 ROS 的离线演示与单元测试」（Mock 后端不做碰撞检测，
+    所以坐标落在墙上也不会失败）。
+
+    真正驱动 Gazebo 导航时必须用 config/locations.yaml —— 那里的坐标
+    经过 tools/check_locations.py 校验（净空 >= 0.95m、21/21 双向可达）。
+    例如本兜底表里 room_c 的 (0.0, 5.0) 在真实世界里正好是北墙位置。
+    """
     return LocationMap.from_dict(
         {
             "frame_id": "map",

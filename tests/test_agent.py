@@ -27,11 +27,39 @@ from typing import Any, Dict, List
 
 import pytest
 
-# 让测试能直接 import agent 包（必须在 import agent 之前执行）
-_SCRIPTS = os.path.join(
-    os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-    "robot_ws", "src", "llm_robot_agent", "scripts",
-)
+
+def _find_scripts_dir() -> str:
+    """向上查找包含 agent 包的 scripts 目录。
+
+    不能把层级写死成「测试文件的上两级 + robot_ws/...」，
+    因为 tests/ 有时被拷到别处（例如放进 ROS 包内部），
+    那样推算出来的路径不存在，pytest 会在收集阶段
+    直接报 ModuleNotFoundError: No module named 'agent'，
+    看起来像测试代码坏了，其实只是目录层级不对。
+
+    这里改成逐级向上找：既可以命中
+        <repo>/robot_ws/src/llm_robot_agent/scripts
+    也能命中直接把 scripts 放在旁边的布局。
+    """
+    here = os.path.dirname(os.path.abspath(__file__))
+    cur = here
+    for _ in range(8):
+        for cand in (
+            os.path.join(cur, "scripts"),
+            os.path.join(cur, "robot_ws", "src", "llm_robot_agent", "scripts"),
+        ):
+            if os.path.isdir(os.path.join(cand, "agent")):
+                return cand
+        parent = os.path.dirname(cur)
+        if parent == cur:
+            break
+        cur = parent
+    raise RuntimeError(
+        "找不到含 agent 包的 scripts 目录（从 %s 向上找了 8 级）。"
+        "请确认在仓库根目录运行 pytest。" % here)
+
+
+_SCRIPTS = _find_scripts_dir()
 if _SCRIPTS not in sys.path:
     sys.path.insert(0, _SCRIPTS)
 

@@ -217,6 +217,48 @@ odom/truth = 1.0005   <-- 这个值应接近 1.000
 **move_base 报告 SUCCEEDED 但机器人实际停在别的地方**，误差可达数米。
 排查顺序见 [第 6 节](#6-故障排查按症状查)。
 
+### 3.4 单元测试与离线演示（10 秒，不需要 ROS）
+
+这一段验证的是 **Agent 逻辑层**，与 Gazebo 无关。
+
+⚠️ **必须在仓库根目录运行**，不是在 ROS 包里：
+
+```bash
+cd /mnt/c/Users/29621/Documents/Qoder/2026-10-19/1c495b10/llm-robot-agent
+# 或者你 clone 的位置，只要该目录下有 tests/ 和 robot_ws/ 即可
+
+python3 -m pytest tests/ -q
+python3 demos/demo.py
+```
+
+**预期**：
+
+```
+33 passed in 1.90s
+
+演示汇总：
+  场景 1: 通过
+  场景 2: 通过
+  场景 3: 通过
+  场景 4: 通过
+```
+
+**如果报 `ModuleNotFoundError: No module named 'agent'`**：
+
+说明 `tests/` 被放到了错误的位置 —— 测试需要向上找到
+`robot_ws/src/llm_robot_agent/scripts` 才能 import `agent` 包。
+如果你把 `tests/` 拷进了 ROS 包内部（例如 `~/catkin_ws/src/...`），
+层级就断了。把 `tests/` 放回仓库根目录即可。
+
+> 这类「拷个目录就 import 失败」的问题很容易被误判成测试代码坏了。
+> 现在 `tests/test_agent.py` 已改成向上逐级搜索，两种布局都能跑。
+
+**注意**：`demos/demo.py` 和单元测试用的是
+`scripts/agent/tools/locations.py` 里的**兜底地点表**（示意坐标），
+不是 `config/locations.yaml`。它们只验证 Agent 的决策逻辑，
+坐标是否落在墙上无关紧要（Mock 后端不做碰撞检测）。
+真实导航验证看 §4 / §5。
+
 ---
 
 ## 4. 启动导航并观察（带界面）
@@ -618,16 +660,41 @@ python3 tools/accept_stage2.py       # 4 项全 PASS 才算通过
 「验收打印」与「搜索打分」必须是两套独立的量，不能共用一行输出。
 `config/locations.yaml` 里的每个坐标都以 `check_locations.py` 的输出为准。
 
-### 症状 F：`TF_REPEATED_DATA` 刷屏
+### 症状 F：`TF_REPEATED_DATA` 偶尔出现几条
 
-diff_drive 与 robot_state_publisher 同时发布轮子 TF。
+先分清两种量级，处理方式完全不同。
 
-确认 URDF 里：
+**F1：只有零星几条（正常，可忽略）**
+
+实测连续 250 秒仿真、跑完 8 个目标，只出现 **3 条**，分布在不同时刻：
+
+```
+TF_REPEATED_DATA ignoring data with redundant timestamp
+for frame base_footprint (parent odom) at time 155.377000
+```
+
+成因：Gazebo 物理步进与 TF 广播在同一个仿真时间戳上偶尔撞车，
+属于仿真时序抖动，不影响定位与导航。**这种情况不要改任何配置。**
+
+判断标准：日志里 `TF_REPEATED_DATA` 在几十条以内、且导航成功率正常，
+就是这一类。
+
+**F2：每帧都刷（几百上千条，才是真的重复发布）**
+
+那才是轮子 TF 被重复发布。确认这两个值：
 
 ```xml
 <publishWheelTF>false</publishWheelTF>
 <publishWheelJointState>true</publishWheelJointState>
 ```
+
+注意 `publishTf` / `publishOdomTF` 控制的是 `odom→base_footprint`
+（**必需为 true**，关掉它 AMCL 就没有里程计输入了），
+与轮子 TF 是两件不同的事，不要为了消警告去关。
+
+> 本项目曾把这条写成「diff_drive 与 robot_state_publisher 同时发布轮子 TF」。
+> 但实测那些零星告警其实来自 `odom→base_footprint` 的时间戳撞车，
+> 而 `publishWheelTF` 早就是 `false` 了 —— 照旧描述去调只会白改一遍。
 
 ### 症状 G：`/scan` 没有数据
 
