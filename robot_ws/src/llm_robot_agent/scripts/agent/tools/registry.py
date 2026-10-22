@@ -118,6 +118,25 @@ class ToolRegistry:
                 retryable=True,
             )
 
+        # 按 schema 校验类型与 enum。
+        #
+        # 只查 required 是不够的：schema 里明明写了
+        # "enum": ["room_a", ...]，但模型完全可能返回
+        # {"location": 3} 或拼错的地点名，这些会一路传到 handler。
+        # 更糟的是 Python 的宽松性让 {"timeout_sec": "30"} 也能跑，
+        # 直到深处才炸出难懂的错误。
+        #
+        # 在工具边界挡住，并给出**可操作的**提示（列出合法取值），
+        # 模型看到 observation 就能自己改对，而不是盲试。
+        bad = self._validate_arguments(spec, arguments)
+        if bad:
+            return ToolResult(
+                ok=False,
+                observation=bad,
+                error_code=ErrorCode.PARAM_INVALID,
+                retryable=True,
+            )
+
         self.call_count += 1
         try:
             result = spec.handler(**arguments)
@@ -142,6 +161,60 @@ class ToolRegistry:
 
         result.latency_ms = int((time.time() - started) * 1000)
         return result
+
+    @staticmethod
+    def _validate_arguments(spec: "ToolSpec",
+                            arguments: Dict[str, Any]) -> Optional[str]:
+        """按工具 schema 校验参数，返回错误说明；通过则返回 None。
+
+        只处理本项目的实际需求（string / number / integer / boolean /
+        array），不追求完整的 JSON Schema 实现。
+
+        关于 `enum`：这里**不**校验它。
+        原因是 `navigate_to` 的 enum 只列了规范地点名，而本项目
+        有意支持别名（`a` / `房间a` / `去房间A` / `Room_A` 等），
+        由 `LocationMap.resolve()` 负责解析。若在 schema 层按字面量
+        比对 enum，就会把这些合法写法全部误杀。
+
+        所以 enum 只作为「给模型看的提示」写进 schema，
+        真正的合法性判断由 handler 里的 resolve() 完成
+        （解析失败会返回 UNKNOWN_LOCATION 并列出可用地点）。
+        """
+        for key, value in arguments.items():
+            rule = spec.parameters.get(key)
+            if not isinstance(rule, dict):
+                # schema 未声明的多余参数：不拒绝（forward compatible），
+                # 由 handler 的签名检查兜底。
+                continue
+
+            expected = rule.get("type")
+            if expected is None or value is None:
+                continue
+
+            if not ToolRegistry._type_ok(expected, value):
+                return (
+                    f"参数 '{key}' 类型错误：期望 {expected}，"
+                    f"实际收到 {type(value).__name__}（值 {value!r}）。"
+                )
+        return None
+
+    @staticmethod
+    def _type_ok(expected: str, value: Any) -> bool:
+        """只做类型判断，不做隐式转换。"""
+        if expected == "string":
+            return isinstance(value, str)
+        if expected == "boolean":
+            # bool 必须先判，否则 True 会被 int 分支接受
+            return isinstance(value, bool)
+        if expected == "integer":
+            return isinstance(value, int) and not isinstance(value, bool)
+        if expected == "number":
+            return isinstance(value, (int, float)) and not isinstance(value, bool)
+        if expected == "array":
+            return isinstance(value, list)
+        if expected == "object":
+            return isinstance(value, dict)
+        return True  # 未知类型不作限制
 
     def invoke_json(self, name: str, raw_arguments: str) -> ToolResult:
         """处理模型返回的原始 JSON 字符串参数（可能带语法错误）。"""

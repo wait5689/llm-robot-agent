@@ -711,6 +711,65 @@ rostopic hz /scan     # 应为 30Hz 左右
 </plugin>
 ```
 
+### 症状 K：★ 机器人卡住不动，却要等到超时才报错
+
+**现象**：机器人被挡住 / 局部规划器输出零速，一直不动。
+Agent 侧却要等到整段 `timeout`（默认 120 s）耗尽才拿到失败，
+错误码是 `NAV_TIMEOUT` 而不是 `BLOCKED`。
+
+**这是本项目修过的一个真实 bug**，值得记住：
+
+`RosBackend.navigate_to` 原本的「停滞检测」看的是 move_base 的
+action 状态：
+
+```python
+# 错误写法（已废弃）
+if state in (SUCCEEDED, ACTIVE, PENDING):
+    if state != SUCCEEDED:
+        last_active = time.time()      # ← 每轮都刷新
+if time.time() - last_active > 45:     # ← 因此永不成立
+    return BLOCKED
+```
+
+而机器人正常导航的**整个过程中 action 状态一直是 ACTIVE**，
+所以 `last_active` 每 200 ms 就被刷新一次，那个 45 秒判定
+**从来没有执行过**，是一段死代码。
+
+实测证据（`tools/` 外的手工实验）：注入持续零速指令让机器人卡死，
+90 秒后返回 `NAV_TIMEOUT`，而设计意图是尽早返回 `BLOCKED`。
+
+**为什么这不只是「少一个错误码」**：
+`BLOCKED` 语义是「可重试 / 可绕行」，`NAV_TIMEOUT` 是「等太久了」。
+Agent 的策略表里两者处置不同，错误码错了后续决策也就错了，
+而且会白白消耗掉整段 timeout（默认 120 s），长任务很容易被拖死。
+
+**现在的正确判据**：只看位姿是否真的变化。
+
+```python
+mon = StagnationMonitor(timeout=25.0, dist_threshold=0.10)
+mon.reset(x, y, now)            # 发送目标后初始化
+...
+if mon.update(x, y, now):       # True = 连续 25s 位移不足 10cm
+    return BLOCKED
+```
+
+实现在 `scripts/agent/backends/stagnation.py`，**不依赖 ROS**，
+因此可以确定性单测（`TestStagnationMonitor`，6 项用例）。
+
+两个参数可在 `RosBackend(...)` 构造函数里调：
+
+| 参数 | 默认 | 含义 |
+|---|---|---|
+| `stagnation_timeout` | 25.0 s | 连续多久没推进算停滞 |
+| `stagnation_dist` | 0.10 m | 位移超过多少算「有推进」 |
+
+> 调这两个值时记住：**阈值太敏感会误报**。
+> 正常室内导航在某一段里 25 秒推进不到 10 cm 是可能的
+> （门口犹豫、恢复行为原地旋转），此时报 BLOCKED 会打断
+> 本来能成功的导航。日志里出现
+> `原地停留超过 N 秒未推进` 时，先看那段是否真卡死，
+> 再决定是调大 timeout 还是调小 dist_threshold。
+
 ---
 
 ## 7. 跑 Agent（LLM 闭环）

@@ -69,6 +69,9 @@ from agent.core import LLMRobotAgent  # noqa: E402
 from agent.llm_client import LLMResponse, OfflinePlanner, ToolCall  # noqa: E402
 from agent.tools.registry import ToolRegistry, ToolSpec, build_default_tools  # noqa: E402
 
+# StagnationMonitor 位于 backends 包内，但不 import rospy，可安全单测
+from agent.backends.stagnation import StagnationMonitor  # noqa: E402
+
 
 # ==========================================================================
 # 1. 地点解析
@@ -171,6 +174,57 @@ class TestToolRegistry:
     def test_invalid_json_arguments(self):
         reg, _ = self._registry()
         result = reg.invoke_json("navigate_to", '{"location": "room_a"')
+        assert not result.ok
+        assert result.error_code == ErrorCode.PARAM_INVALID
+
+    # ---------------- 参数 schema 校验（类型）----------------
+    def test_wrong_type_is_rejected(self):
+        """模型传入错误类型（数字当地点）应被拒绝，而不是穿透到后端。"""
+        reg, _ = self._registry()
+        result = reg.invoke("navigate_to", {"location": 3})
+        assert not result.ok
+        assert result.error_code == ErrorCode.PARAM_INVALID
+        assert "类型" in result.observation
+
+    def test_unknown_location_still_reaches_handler(self):
+        """enum 不做字面量比对，未知地点由 handler 的 resolve() 判定。
+
+        这样别名（a / 房间a / 去房间A）才不会被 schema 层误杀。
+        """
+        reg, backend = self._registry()
+        result = reg.invoke("navigate_to", {"location": "火星基地"})
+        assert not result.ok
+        assert result.error_code == ErrorCode.UNKNOWN_LOCATION
+        # 提示里要列出可用地点，模型才能自我纠正
+        assert "room_a" in result.observation
+
+    def test_alias_still_works_through_validation(self):
+        """加参数校验后，别名必须依然能正常导航。"""
+        reg, backend = self._registry()
+        result = reg.invoke("navigate_to", {"location": "房间a"})
+        assert result.ok, f"别名应可用，实际：{result.observation}"
+
+    def test_timeout_accepts_int_and_float(self):
+        """number 类型应同时接受 int 与 float。"""
+        reg, _ = self._registry()
+        for v in (30, 30.5):
+            result = reg.invoke("navigate_to",
+                                {"location": "room_a", "timeout_sec": v})
+            assert result.ok, f"timeout_sec={v!r} 应被接受"
+
+    def test_bool_is_not_accepted_as_number(self):
+        """Python 里 True 是 int 的子类，不能让 bool 冒充 number。"""
+        reg, _ = self._registry()
+        result = reg.invoke("navigate_to",
+                            {"location": "room_a", "timeout_sec": True})
+        assert not result.ok
+        assert result.error_code == ErrorCode.PARAM_INVALID
+
+    def test_numeric_string_is_rejected(self):
+        """'30' 不是 number，不能隐式转换（显式优于隐式）。"""
+        reg, _ = self._registry()
+        result = reg.invoke("navigate_to",
+                            {"location": "room_a", "timeout_sec": "30"})
         assert not result.ok
         assert result.error_code == ErrorCode.PARAM_INVALID
 
@@ -453,6 +507,75 @@ class TestAgentReact:
         # 首条 system 与任务必须保留
         assert out[0]["role"] == "system"
         assert out[1]["role"] == "user"
+
+
+# ==========================================================================
+# 6. 停滞检测（回归：这段逻辑曾经是死代码）
+#
+# 为什么值得单测：旧实现判断的是 move_base 的 action 状态而非位姿，
+# 而导航全程 action 都是 ACTIVE，导致停滞判定永远不触发。
+# 仿真里这个 bug 只在「真卡住」时才显形，很容易漏掉。
+# 这里用可控的时间序列精确断言触发时机。
+# ==========================================================================
+class TestStagnationMonitor:
+    def test_no_trigger_while_moving(self):
+        """持续前进时永远不判定停滞。"""
+        mon = StagnationMonitor(timeout=10.0, dist_threshold=0.10)
+        mon.reset(0.0, 0.0, now=0.0)
+        # 每 1 秒前进 0.2 m，共 60 秒
+        for i in range(1, 61):
+            assert not mon.update(0.2 * i, 0.0, float(i)), \
+                f"第 {i}s 仍在移动，不应判定停滞"
+
+    def test_triggers_after_timeout_when_frozen(self):
+        """完全不动时，应在 timeout 之后立刻触发。"""
+        mon = StagnationMonitor(timeout=10.0, dist_threshold=0.10)
+        mon.reset(0.0, 0.0, now=0.0)
+        for i in range(0, 10):
+            assert not mon.update(0.0, 0.0, float(i)), f"{i}s 时不应触发"
+        # 第 11 秒超过 10s 阈值
+        assert mon.update(0.0, 0.0, 11.0)
+
+    def test_small_jitter_does_not_reset_timer(self):
+        """位姿抖动小于阈值不算进展，不能无限续命。"""
+        mon = StagnationMonitor(timeout=10.0, dist_threshold=0.10)
+        mon.reset(0.0, 0.0, now=0.0)
+        # 每次只抖动 0.05 m（< 0.10 阈值）
+        for i in range(1, 21):
+            jitter = 0.05 if i % 2 else -0.05
+            triggered = mon.update(jitter, 0.0, float(i))
+            if i <= 10:
+                assert not triggered, f"{i}s 抖动不应触发"
+        # 到 20 秒必然已超过 10 秒无实质进展
+        assert mon.update(0.05, 0.0, 21.0)
+
+    def test_progress_resets_timer(self):
+        """中途明确前进过一次，超时计时应重新开始。"""
+        mon = StagnationMonitor(timeout=10.0, dist_threshold=0.10)
+        mon.reset(0.0, 0.0, now=0.0)
+        # 静止到第 9 秒
+        for i in range(0, 10):
+            assert not mon.update(0.0, 0.0, float(i))
+        # 第 9.5 秒前进 0.2 m -> 计时重置
+        assert not mon.update(0.2, 0.0, 9.5)
+        # 从 9.5 起算，到 18.0 仍未超过 10s
+        assert not mon.update(0.2, 0.0, 18.0)
+        # 到 20.0 超过 10s 了
+        assert mon.update(0.2, 0.0, 20.0)
+
+    def test_rejects_invalid_params(self):
+        """非法参数应当立刻报错，而不是静默产生诡异行为。"""
+        with pytest.raises(ValueError):
+            StagnationMonitor(timeout=0)
+        with pytest.raises(ValueError):
+            StagnationMonitor(dist_threshold=0)
+
+    def test_elapsed_without_progress(self):
+        mon = StagnationMonitor(timeout=10.0, dist_threshold=0.10)
+        mon.reset(0.0, 0.0, now=5.0)
+        assert mon.elapsed_without_progress(8.0) == pytest.approx(3.0)
+        mon.update(0.5, 0.0, 8.0)  # 有进展 -> 重置
+        assert mon.elapsed_without_progress(9.0) == pytest.approx(1.0)
 
 
 if __name__ == "__main__":

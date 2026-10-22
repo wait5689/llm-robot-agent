@@ -34,6 +34,7 @@ from typing import Optional
 from ..contracts import ErrorCode, RobotState, ToolResult
 from ..tools.locations import LocationMap
 from .base import RobotBackend
+from .stagnation import StagnationMonitor
 
 log = logging.getLogger(__name__)
 
@@ -75,6 +76,8 @@ class RosBackend(RobotBackend):
         goal_tolerance: float = 0.30,
         default_timeout: float = 120.0,
         connect_timeout: float = 3.0,
+        stagnation_timeout: float = 25.0,
+        stagnation_dist: float = 0.10,
     ):
         if not ROS_AVAILABLE:
             raise RuntimeError(
@@ -85,6 +88,11 @@ class RosBackend(RobotBackend):
         self.loc = locations
         self.goal_tolerance = goal_tolerance
         self.default_timeout = default_timeout
+        # 停滞检测：连续 stagnation_timeout 秒内位移不足 stagnation_dist，
+        # 即判定受阻。默认 25s / 0.10m —— 正常室内导航任何一段
+        # 25 秒内都能推进 10cm 以上；真正做到「寸步未动」才报警。
+        self.stagnation_timeout = stagnation_timeout
+        self.stagnation_dist = stagnation_dist
 
         if not rospy.core.is_initialized():
             rospy.init_node(node_name, anonymous=True)
@@ -202,31 +210,67 @@ class RosBackend(RobotBackend):
         self.client.send_goal(goal)
 
         deadline = time.time() + timeout
-        last_active = time.time()
+
+        # ------------------------------------------------------------
+        # 停滞检测：判据是「位姿有没有真的变化」，不是 action 状态。
+        #
+        # 早期实现看的是 move_base 的 action 状态：
+        #     if state != SUCCEEDED: last_active = time.time()
+        # 而机器人正常导航全程 action 都是 ACTIVE，于是计时器每轮被
+        # 刷新，判定永远不触发 —— 那是一段从未执行过的死代码。
+        #
+        # 实测证据：注入持续零速指令让机器人卡死后，90 秒才返回
+        # NAV_TIMEOUT，而设计意图是尽早返回 BLOCKED。
+        # 两者对 Agent 的策略不同（可重试/可绕行 vs 等超时），
+        # 错误码错了后续决策也就错了。
+        #
+        # 逻辑已抽到 StagnationMonitor，便于确定性单元测试。
+        # ------------------------------------------------------------
+        monitor = StagnationMonitor(
+            timeout=self.stagnation_timeout,
+            dist_threshold=self.stagnation_dist,
+        )
+
+        # 定位尚未就绪时先不启动计时，避免把「等 AMCL 收敛」算作停滞
+        if self._pose["valid"]:
+            monitor.reset(self._pose["x"], self._pose["y"], time.time())
+
         while time.time() < deadline:
             if rospy.is_shutdown():
                 break
             state = self.client.get_state()
 
-            if state in (GoalStatus.SUCCEEDED, GoalStatus.ACTIVE, GoalStatus.PENDING):
-                if state != GoalStatus.SUCCEEDED:
-                    last_active = time.time()
-                else:
-                    break
-            else:
+            if state == GoalStatus.SUCCEEDED:
+                break
+            if state not in (GoalStatus.ACTIVE, GoalStatus.PENDING):
                 break
 
-            # 超过 45 秒完全没有进展，视为卡死
-            if time.time() - last_active > 45:
-                self.client.cancel_goal()
-                self._nav_state = "idle"
-                self._current_goal = None
-                return ToolResult(
-                    ok=False,
-                    observation=f"前往 {location} 时机器人长时间无进展，判定为受阻停滞。",
-                    error_code=ErrorCode.BLOCKED,
-                    retryable=True,
-                )
+            with self._lock:
+                cur_x, cur_y = self._pose["x"], self._pose["y"]
+                cur_valid = self._pose["valid"]
+
+            if cur_valid:
+                if monitor.reference is None:
+                    # 定位刚就绪：以此刻为起点开始计时
+                    monitor.reset(cur_x, cur_y, time.time())
+                elif monitor.update(cur_x, cur_y, time.time()):
+                    self.client.cancel_goal()
+                    self._nav_state = "idle"
+                    self._current_goal = None
+                    dist_now = math.hypot(cur_x - x, cur_y - y)
+                    return ToolResult(
+                        ok=False,
+                        observation=(
+                            f"前往 {location} 时机器人原地停留超过 "
+                            f"{self.stagnation_timeout:.0f} 秒未推进"
+                            f"（距目标仍有 {dist_now:.2f} m），判定为受阻停滞。"
+                        ),
+                        error_code=ErrorCode.BLOCKED,
+                        retryable=True,
+                        data={"location": location,
+                              "dist_error": round(dist_now, 2),
+                              "stagnated": True},
+                    )
             time.sleep(0.2)
 
         state = self.client.get_state()

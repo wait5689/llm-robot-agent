@@ -22,21 +22,37 @@ TrajectoryPlannerROS:
   # 到达判定。必须与 config/agent.yaml 的 navigation.goal_tolerance 协调：
   # agent 侧 0.30 m，这里取 0.20 m 更严格，
   # 保证 move_base 报 SUCCEEDED 时 agent 的到达判定也一定成立。
-  # ★ latch_xy_goal_tolerance 必须保持 false。
+  # ★ latch_xy_goal_tolerance 必须保持 false（这也正是上游默认值）。
   #
-  # 这里踩了一个很隐蔽的坑，记下来避免重犯：
+  # 这里踩过一个很隐蔽的坑，记下来避免重犯：
   # 曾经为了消除「到达目标后原地画小圈」，把它改成 true，结果更糟 ——
   # 机器人在 room_a（map 位姿 (-3.56,3.01)）接受去 home 的目标后，
   # move_base 持续以 15Hz 发布 cmd_vel，但线速度与角速度恒为 0，
   # 目标永不结束（state 一直 ACTIVE），也不报任何错误。
-  #
-  # 原因：latch=true 后，DWA 一旦进入 xy_goal_tolerance 就锁定平移，
-  # 只允许原地转 yaw。而该处 yaw 早已满足 yaw_goal_tolerance，
-  # 于是「不准走、也不用转」——规划器每周期都输出零速，
-  # move_base 认为机器人还在努力，永不判失败。
   # 症状：机器人彻底静止，日志干净，全靠 timeout 才发现。
   #
-  # 保持 false 时，若漂出容差会重新平移修正，不会僵死。
+  # ── 机制更正（对照上游 ros-planning/navigation 源码）──────────
+  # trajectory_planner_ros.cpp 里的真实逻辑是：
+  #
+  #   if (xy_tolerance_latch_ || dist <= xy_goal_tolerance_) {
+  #     if (latch_xy_goal_tolerance_) xy_tolerance_latch_ = true;
+  #     if (|angle| <= yaw_goal_tolerance_) {
+  #         cmd_vel = 0; xy_tolerance_latch_ = false; reached_goal_ = true;
+  #     } else { ...原地旋转... }
+  #   }
+  #
+  # 也就是说 latch=true 的**设计意图**是「进入 xy 容差后就只原地转到
+  # 目标朝向」；只要 yaw 还没到位就会继续旋转，转到容差内即清 latch
+  # 并正常结束。所以「latch=true 必然永久死锁」是过度归因 ——
+  # 当时观察到的零速静止，更可能是 yaw 已在容差内、而位姿恰在边界
+  # 抖动，使得每周期都落入「不需要平移也不需要旋转」的分支。
+  #
+  # 但**结论不变**，仍保持 false，因为：
+  #   1) false 是上游默认值，行为最可预测；
+  #   2) latch 生效后会放弃平移修正，只靠旋转收尾，
+  #      在狭窄门口容易停在容差边缘而非真正就位；
+  #   3) 换成 false 后该「零速静止」现象没有再复现。
+  #
   # 「原地画小圈」另有根治办法：放宽 oscillation 阈值（见 move_base_params.yaml）。
   xy_goal_tolerance: 0.20
   yaw_goal_tolerance: 0.20
