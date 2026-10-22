@@ -71,6 +71,15 @@ class LLMRobotAgent:
         from .tools.registry import build_default_tools
 
         self.tools = build_default_tools(backend, locations)
+
+        # 工具禁用（借鉴 NASA JPL ROSA 的 blacklist 机制）。
+        # 配置形如：
+        #   agent:
+        #     disabled_tools:
+        #       cancel_navigation: "急停类操作需人工确认"
+        # 支持 list（只给名字）与 dict（名字 -> 原因）两种写法。
+        self._apply_tool_policy(self.cfg.get("disabled_tools"))
+
         self.tool_schemas = self.tools.schemas()
 
         self.system_prompt = build_system_prompt(locations, backend.name())
@@ -80,6 +89,21 @@ class LLMRobotAgent:
         self.record: Optional[TaskRecord] = None
         self._attempts: Dict[str, int] = {}
         self._consecutive_failures = 0
+
+    def _apply_tool_policy(self, disabled: Any) -> None:
+        """按配置禁用工具。写错名字时只告警不抛异常 —— 工具策略
+        不应该因为一个拼写错误就让整个 Agent 起不来。"""
+        if not disabled:
+            return
+        if isinstance(disabled, dict):
+            items = disabled.items()
+        else:
+            items = [(name, "") for name in disabled]
+        for name, reason in items:
+            try:
+                self.tools.disable(str(name), reason=str(reason or ""))
+            except KeyError:
+                log.warning("配置里要禁用的工具不存在，已忽略：%s", name)
 
     # ==================================================================
     # 对外主接口
@@ -113,6 +137,8 @@ class LLMRobotAgent:
             "tool_calls": self.record.tool_calls,
             "replans": self.record.replans,
             "elapsed_sec": round(self.record.elapsed(), 1),
+            "llm_calls": self.record.llm_calls,
+            "total_tokens": self.record.total_tokens,
             "steps": [s.to_dict() for s in self.record.steps],
             "final_state": self.backend.get_state().to_dict(),
             "record": self.record.to_dict(),
@@ -138,6 +164,10 @@ class LLMRobotAgent:
             self._say(f"\n--- 第 {self.record.turns} 轮 ---")
 
             resp = self.llm.chat(messages, tools=self.tool_schemas)
+
+            # 累计 token 用量。接口返回的 usage 原本被直接丢弃，
+            # 导致「这次任务花了多少 token」无从回答。
+            self.record.add_usage(getattr(resp, "usage", None))
 
             if not resp.ok:
                 self._say(f"[LLM 调用失败] {resp.error}")

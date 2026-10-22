@@ -169,6 +169,35 @@ class TaskRecord:
     trace: List[Dict[str, Any]] = field(default_factory=list)
     final_message: str = ""
 
+    # ---------------- LLM 成本计量 ----------------
+    # 接口返回的 usage 字段原本被直接丢弃，导致「这个任务花了多少
+    # token」无法回答。这里累计起来，供成本分析与回归对比使用。
+    # 注意：部分第三方 OpenAI 兼容端点不返回 usage，此时保持 0。
+    prompt_tokens: int = 0
+    completion_tokens: int = 0
+    llm_calls: int = 0
+
+    @property
+    def total_tokens(self) -> int:
+        return self.prompt_tokens + self.completion_tokens
+
+    def add_usage(self, usage: Optional[Dict[str, Any]]) -> None:
+        """累计一次 LLM 调用的 token 用量。
+
+        兼容两种字段命名：OpenAI 的 prompt_tokens/completion_tokens
+        与部分端点的 input_tokens/output_tokens。缺失则忽略。
+        """
+        self.llm_calls += 1
+        if not isinstance(usage, dict):
+            return
+        prompt = usage.get("prompt_tokens", usage.get("input_tokens", 0))
+        completion = usage.get("completion_tokens", usage.get("output_tokens", 0))
+        try:
+            self.prompt_tokens += int(prompt or 0)
+            self.completion_tokens += int(completion or 0)
+        except (TypeError, ValueError):
+            pass
+
     def elapsed(self) -> float:
         end = self.finished_at or time.time()
         return end - self.started_at
@@ -186,4 +215,8 @@ class TaskRecord:
             "steps": [s.to_dict() for s in self.steps],
             "trace": self.trace,
             "final_message": self.final_message,
+            "llm_calls": self.llm_calls,
+            "prompt_tokens": self.prompt_tokens,
+            "completion_tokens": self.completion_tokens,
+            "total_tokens": self.total_tokens,
         }

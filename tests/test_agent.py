@@ -228,6 +228,59 @@ class TestToolRegistry:
         assert not result.ok
         assert result.error_code == ErrorCode.PARAM_INVALID
 
+    # ---------------- 工具禁用（借鉴 NASA JPL ROSA 的 blacklist）----------------
+    def test_disabled_tool_removed_from_schema(self):
+        """被禁用的工具必须从 schema 里消失。
+
+        只在调用时拒绝是不够的：模型只要看得见就会一直尝试，
+        白白消耗轮次和 token。从 schema 移除才是真正「不可用」。
+        """
+        reg, _ = self._registry()
+        before = {s["function"]["name"] for s in reg.schemas()}
+        assert "navigate_to" in before
+
+        reg.disable("navigate_to", reason="演示期间锁定移动")
+        after = {s["function"]["name"] for s in reg.schemas()}
+
+        assert "navigate_to" not in after
+        assert "get_robot_state" in after  # 其它工具不受影响
+
+    def test_disabled_tool_call_is_rejected_with_reason(self):
+        """模型执意调用被禁工具时，要说明原因且不可重试。"""
+        reg, _ = self._registry()
+        reg.disable("navigate_to", reason="演示期间锁定移动")
+
+        result = reg.invoke("navigate_to", {"location": "room_a"})
+        assert not result.ok
+        assert result.error_code == ErrorCode.TOOL_NOT_FOUND
+        # 不可重试：重试也不会成功
+        assert result.retryable is False
+        # 提示里要带上禁用原因，模型才知道不是参数写错
+        assert "演示期间锁定移动" in result.observation
+
+    def test_enable_restores_tool(self):
+        """禁用后可以恢复。"""
+        reg, _ = self._registry()
+        reg.disable("navigate_to", reason="临时锁定")
+        assert not reg.is_enabled("navigate_to")
+
+        reg.enable("navigate_to")
+        assert reg.is_enabled("navigate_to")
+        assert reg.invoke("navigate_to", {"location": "room_a"}).ok
+
+    def test_disable_unknown_tool_raises(self):
+        """禁用不存在的工具应当立刻报错，避免拼写错误静默失效。"""
+        reg, _ = self._registry()
+        with pytest.raises(KeyError):
+            reg.disable("no_such_tool")
+
+    def test_enabled_names_excludes_disabled(self):
+        reg, _ = self._registry()
+        reg.disable("cancel_navigation", reason="测试")
+        assert "cancel_navigation" not in reg.enabled_names()
+        # names() 仍列出全部（含禁用），便于排查配置
+        assert "cancel_navigation" in reg.names()
+
 
 # ==========================================================================
 # 3. Mock 后端的故障语义
@@ -350,9 +403,11 @@ class FakeLLM:
     每一步都可以断言「Agent 是否把上一步的观察喂回了模型」。
     """
 
-    def __init__(self, script: List[LLMResponse]):
+    def __init__(self, script: List[LLMResponse], usage=None):
         self.script = list(script)
         self.calls: List[List[Dict[str, Any]]] = []
+        # 模拟接口返回的 token 用量；None 表示端点不返回 usage
+        self.usage = usage
 
     def available(self) -> bool:
         return True
@@ -360,8 +415,12 @@ class FakeLLM:
     def chat(self, messages, tools=None, temperature=None) -> LLMResponse:
         self.calls.append([dict(m) for m in messages])
         if self.script:
-            return self.script.pop(0)
-        return LLMResponse(ok=True, content="done")
+            resp = self.script.pop(0)
+        else:
+            resp = LLMResponse(ok=True, content="done")
+        # 把用量挂到本次响应上，模拟真实客户端的行为
+        resp.usage = self.usage
+        return resp
 
 
 def _call(name: str, args: str, call_id: str = "c1") -> LLMResponse:
@@ -576,6 +635,86 @@ class TestStagnationMonitor:
         assert mon.elapsed_without_progress(8.0) == pytest.approx(3.0)
         mon.update(0.5, 0.0, 8.0)  # 有进展 -> 重置
         assert mon.elapsed_without_progress(9.0) == pytest.approx(1.0)
+
+
+# ==========================================================================
+# 7. 配置驱动的工具禁用 + token 计量
+#
+# 工具禁用借鉴 NASA JPL ROSA 的 blacklist：安全策略不应该写死在代码里，
+# 而应由配置决定（同一条代码，演示时锁移动、真机时锁急停）。
+# ==========================================================================
+class TestToolPolicyAndUsage:
+    def _agent(self, llm=None, agent_cfg=None):
+        lm = default_location_map()
+        mock = MockBackend(lm, step_delay=0, seed=5)
+        cfg = {"max_turns": 8, "loop_delay_sec": 0, "max_nav_attempts": 3}
+        cfg.update(agent_cfg or {})
+        agent = LLMRobotAgent(
+            backend=mock, llm=llm or FakeLLM([]), locations=lm,
+            config={"agent": cfg}, verbose=False,
+        )
+        return agent, mock
+
+    def test_disabled_tools_dict_form(self):
+        """dict 形式：名字 -> 原因，原因应出现在被拒提示里。"""
+        agent, _ = self._agent(agent_cfg={
+            "disabled_tools": {"cancel_navigation": "急停需人工确认"},
+        })
+        assert not agent.tools.is_enabled("cancel_navigation")
+        schema_names = {s["function"]["name"] for s in agent.tool_schemas}
+        assert "cancel_navigation" not in schema_names
+
+        result = agent.tools.invoke("cancel_navigation", {})
+        assert not result.ok
+        assert "急停需人工确认" in result.observation
+
+    def test_disabled_tools_list_form(self):
+        """list 形式：只给名字。"""
+        agent, _ = self._agent(agent_cfg={
+            "disabled_tools": ["cancel_navigation"],
+        })
+        assert not agent.tools.is_enabled("cancel_navigation")
+
+    def test_typo_in_disabled_tools_does_not_crash(self):
+        """配置里写错工具名只告警，不能让 Agent 起不来。"""
+        agent, _ = self._agent(agent_cfg={
+            "disabled_tools": ["no_such_tool_typo"],
+        })
+        # 正常构造出来了，且其它工具仍可用
+        assert agent.tools.is_enabled("navigate_to")
+
+    def test_no_disabled_tools_by_default(self):
+        agent, _ = self._agent()
+        assert len(agent.tools.enabled_names()) == len(agent.tools.names())
+
+    def test_usage_is_accumulated(self):
+        """LLM 返回的 usage 必须被累计，否则无法回答「花了多少 token」。"""
+        llm = FakeLLM([
+            _call("navigate_to", '{"location": "room_a"}'),
+            _call("report_done", '{"summary": "完成"}'),
+        ])
+        # 给每次响应挂上 usage
+        llm.usage = {"prompt_tokens": 120, "completion_tokens": 30}
+        agent, _ = self._agent(llm)
+        out = agent.run("去 room_a")
+
+        assert out["llm_calls"] == 2
+        assert out["total_tokens"] == 2 * (120 + 30)
+        rec = out["record"]
+        assert rec["prompt_tokens"] == 240
+        assert rec["completion_tokens"] == 60
+        assert rec["total_tokens"] == 300
+
+    def test_usage_absent_does_not_break(self):
+        """端点不返回 usage 时应保持 0，而不是抛异常。"""
+        llm = FakeLLM([
+            _call("report_done", '{"summary": "完成"}'),
+        ])
+        llm.usage = None
+        agent, _ = self._agent(llm)
+        out = agent.run("随便")
+        assert out["llm_calls"] == 1
+        assert out["total_tokens"] == 0
 
 
 if __name__ == "__main__":

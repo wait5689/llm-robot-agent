@@ -22,6 +22,22 @@ agent:
   task_timeout_sec: 600
   # 每一步之间保持的最小间隔，避免打断导航
   loop_delay_sec: 0.5
+  # 工具禁用名单（借鉴 NASA JPL ROSA 的 blacklist 机制）
+  #
+  # 被禁用的工具会从「给模型看的 schema」里直接移除，而不是只在
+  # 调用时拒绝 —— 因为模型只要看得见就会一直尝试，白白消耗轮次。
+  #
+  # 为什么放在配置里而不是写死在代码：同一套代码，演示时要锁住移动、
+  # 真机上要锁住急停，这是部署策略而不是代码逻辑。
+  #
+  # 格式：工具名 -> 禁用原因（原因会写进模型收到的提示里）
+  # 留空表示不禁用任何工具。
+  disabled_tools: {}
+    # cancel_navigation: 急停类操作需人工确认
+    # report_done: 演示期间禁止模型自行宣布结束
+  # 以下为可选的停滞检测参数（对应 RosBackend 构造参数）
+  # stagnation_timeout_sec: 25.0   # 连续多久没推进判定为受阻
+  # stagnation_dist_m: 0.10        # 位移超过多少算「有推进」
 
 navigation:
   # 单次导航目标超时（秒）

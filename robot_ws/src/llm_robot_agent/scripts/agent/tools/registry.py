@@ -68,6 +68,8 @@ class ToolRegistry:
     def __init__(self) -> None:
         self._tools: Dict[str, ToolSpec] = {}
         self.call_count = 0
+        # 工具禁用名单（借鉴 NASA JPL ROSA 的 blacklist 设计）
+        self._disabled: Dict[str, str] = {}
 
     # ---------------- 注册 ----------------
     def register(self, spec: ToolSpec) -> None:
@@ -77,19 +79,66 @@ class ToolRegistry:
         log.debug("注册工具 %s", spec.name)
 
     def names(self) -> List[str]:
+        """所有已注册工具名（含被禁用的）。"""
         return list(self._tools.keys())
 
+    def enabled_names(self) -> List[str]:
+        """当前实际可用的工具名（排除禁用项）。"""
+        return [n for n in self._tools if n not in self._disabled]
+
     def schemas(self) -> List[Dict[str, Any]]:
-        return [t.to_openai_schema() for t in self._tools.values()]
+        """导出给模型的工具 schema。
+
+        **被禁用的工具不会出现在 schema 里** —— 这是关键：
+        只在调用时拒绝是不够的，模型看得到就会一直尝试，
+        白白消耗轮次和 token。从 schema 里移除才是真正「不可用」。
+        """
+        return [
+            t.to_openai_schema()
+            for name, t in self._tools.items()
+            if name not in self._disabled
+        ]
+
+    def disable(self, name: str, reason: str = "") -> None:
+        """禁用一个工具，并记录原因（会写进调用被拒时的提示）。
+
+        典型用途：
+          - 演示时不希望模型自己乱取消导航 -> disable("cancel_nav")
+          - 某工具在当前后端上没有实现
+          - 危险操作（急停、复位）需要人工确认才能放行
+        """
+        if name not in self._tools:
+            raise KeyError(f"无法禁用未注册的工具: {name}")
+        self._disabled[name] = reason or "已被策略禁用"
+        log.warning("工具 %s 已禁用：%s", name, self._disabled[name])
+
+    def enable(self, name: str) -> None:
+        self._disabled.pop(name, None)
+
+    def is_enabled(self, name: str) -> bool:
+        return name in self._tools and name not in self._disabled
 
     # ---------------- 调用 ----------------
     def invoke(self, name: str, arguments: Dict[str, Any]) -> ToolResult:
         """按名称调用工具。
 
-        对模型幻觉出的工具名、错误参数类型、执行期异常做统一兜底，
-        保证调用方永远拿到 `ToolResult` 而不是炸掉的栈。
+        对模型幻觉出的工具名、被禁用的工具、错误参数类型、执行期异常
+        做统一兜底，保证调用方永远拿到 `ToolResult` 而不是炸掉的栈。
         """
         started = time.time()
+
+        # 被禁用的工具：即使模型执意调用（比如从旧上下文里看到过），
+        # 也返回明确原因，让模型知道"这个工具不可用"而不是"参数写错了"。
+        if name in self._disabled:
+            return ToolResult(
+                ok=False,
+                observation=(
+                    f"工具 '{name}' 当前不可用（{self._disabled[name]}）。"
+                    f"可用工具：{', '.join(self.enabled_names())}"
+                ),
+                error_code=ErrorCode.TOOL_NOT_FOUND,
+                retryable=False,
+            )
 
         spec = self._tools.get(name)
         if spec is None:
